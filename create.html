@@ -62,6 +62,10 @@
 <script>
   const form = document.getElementById("challengeForm");
 
+  function generateKey() {
+    return Math.random().toString(36).substring(2, 10);
+  }
+
   form.addEventListener("submit", function (e) {
     e.preventDefault();
 
@@ -76,15 +80,19 @@
       .filter(o => o.length > 0)
       .map(o => ({ text: o, done: false }));
 
+    const editKey = generateKey();
+
     const challenge = {
       title,
       game,
       description,
-      objectives
+      objectives,
+      editKey
     };
 
     localStorage.setItem("currentChallenge", JSON.stringify(challenge));
-    window.location.href = "view.html";
+
+    window.location.href = `view.html?edit=${editKey}`;
   });
 </script>
 

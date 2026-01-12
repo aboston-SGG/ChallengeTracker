@@ -35,6 +35,10 @@
 
   <script>
   const data = JSON.parse(localStorage.getItem("currentChallenge"));
+  const params = new URLSearchParams(window.location.search);
+  const editKey = params.get("edit");
+
+  const isEditable = data && editKey && editKey === data.editKey;
 
   if (!data) {
     document.body.innerHTML = "<p>No challenge found.</p>";
@@ -60,9 +64,11 @@
       const checkbox = document.createElement("input");
       checkbox.type = "checkbox";
       checkbox.checked = obj.done;
+      checkbox.disabled = !isEditable;
       checkbox.style.marginRight = "0.5rem";
 
       checkbox.addEventListener("change", () => {
+        if (!isEditable) return;
         data.objectives[index].done = checkbox.checked;
         updateProgress();
       });
@@ -75,6 +81,7 @@
     updateProgress();
   }
 </script>
+
 
 </body>
 </html>
