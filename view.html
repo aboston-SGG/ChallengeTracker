@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>View Challenge</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    body {
+      font-family: system-ui, sans-serif;
+      max-width: 700px;
+      margin: 3rem auto;
+      padding: 1rem;
+    }
+    ul {
+      padding-left: 1.25rem;
+    }
+    li {
+      margin-bottom: 0.5rem;
+    }
+    .meta {
+      color: #555;
+      margin-bottom: 1rem;
+    }
+  </style>
+</head>
+<body>
+
+  <h1 id="title"></h1>
+  <div class="meta" id="game"></div>
+  <p id="description"></p>
+
+  <h2>Objectives</h2>
+  <ul id="objectives"></ul>
+
+  <script>
+    const data = JSON.parse(localStorage.getItem("currentChallenge"));
+
+    if (!data) {
+      document.body.innerHTML = "<p>No challenge found.</p>";
+    } else {
+      document.getElementById("title").textContent = data.title;
+      document.getElementById("game").textContent = "Game: " + data.game;
+      document.getElementById("description").textContent = data.description;
+
+      const list = document.getElementById("objectives");
+      data.objectives.forEach(obj => {
+        const li = document.createElement("li");
+        li.textContent = obj;
+        list.appendChild(li);
+      });
+    }
+  </script>
+
+</body>
+</html>

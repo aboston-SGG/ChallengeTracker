@@ -35,7 +35,7 @@
 
   <h1>Create a Challenge</h1>
 
-  <form>
+  <form id="challengeForm">
     <label>
       Challenge Title
       <input type="text" placeholder="Nuzlocke Run" required />
@@ -58,6 +58,35 @@
 
     <button type="submit">Create Challenge</button>
   </form>
+
+<script>
+  const form = document.getElementById("challengeForm");
+
+  form.addEventListener("submit", function (e) {
+    e.preventDefault();
+
+    const title = form.querySelector('input[placeholder="Nuzlocke Run"]').value;
+    const game = form.querySelector('input[placeholder="Pokémon Emerald"]').value;
+    const description = form.querySelector('textarea').value;
+    const objectivesText = form.querySelectorAll('textarea')[1].value;
+
+    const objectives = objectivesText
+      .split("\n")
+      .map(o => o.trim())
+      .filter(o => o.length > 0);
+
+    const challenge = {
+      title,
+      game,
+      description,
+      objectives
+    };
+
+    localStorage.setItem("currentChallenge", JSON.stringify(challenge));
+
+    window.location.href = "view.html";
+  });
+</script>
 
 </body>
 </html>
