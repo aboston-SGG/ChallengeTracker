@@ -28,28 +28,53 @@
   <h1 id="title"></h1>
   <div class="meta" id="game"></div>
   <p id="description"></p>
+  <p id="progress"></p>
 
   <h2>Objectives</h2>
   <ul id="objectives"></ul>
 
   <script>
-    const data = JSON.parse(localStorage.getItem("currentChallenge"));
+  const data = JSON.parse(localStorage.getItem("currentChallenge"));
 
-    if (!data) {
-      document.body.innerHTML = "<p>No challenge found.</p>";
-    } else {
-      document.getElementById("title").textContent = data.title;
-      document.getElementById("game").textContent = "Game: " + data.game;
-      document.getElementById("description").textContent = data.description;
+  if (!data) {
+    document.body.innerHTML = "<p>No challenge found.</p>";
+  } else {
+    document.getElementById("title").textContent = data.title;
+    document.getElementById("game").textContent = "Game: " + data.game;
+    document.getElementById("description").textContent = data.description;
 
-      const list = document.getElementById("objectives");
-      data.objectives.forEach(obj => {
-        const li = document.createElement("li");
-        li.textContent = obj;
-        list.appendChild(li);
-      });
+    const list = document.getElementById("objectives");
+
+    function updateProgress() {
+      const completed = data.objectives.filter(o => o.done).length;
+      const total = data.objectives.length;
+      document.getElementById("progress").textContent =
+        `Progress: ${completed} / ${total} (${Math.round((completed / total) * 100)}%)`;
+
+      localStorage.setItem("currentChallenge", JSON.stringify(data));
     }
-  </script>
+
+    data.objectives.forEach((obj, index) => {
+      const li = document.createElement("li");
+
+      const checkbox = document.createElement("input");
+      checkbox.type = "checkbox";
+      checkbox.checked = obj.done;
+      checkbox.style.marginRight = "0.5rem";
+
+      checkbox.addEventListener("change", () => {
+        data.objectives[index].done = checkbox.checked;
+        updateProgress();
+      });
+
+      li.appendChild(checkbox);
+      li.appendChild(document.createTextNode(obj.text));
+      list.appendChild(li);
+    });
+
+    updateProgress();
+  }
+</script>
 
 </body>
 </html>

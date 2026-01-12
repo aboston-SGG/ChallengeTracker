@@ -73,7 +73,8 @@
     const objectives = objectivesText
       .split("\n")
       .map(o => o.trim())
-      .filter(o => o.length > 0);
+      .filter(o => o.length > 0)
+      .map(o => ({ text: o, done: false }));
 
     const challenge = {
       title,
@@ -83,7 +84,6 @@
     };
 
     localStorage.setItem("currentChallenge", JSON.stringify(challenge));
-
     window.location.href = "view.html";
   });
 </script>
