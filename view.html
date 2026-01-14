@@ -22,6 +22,29 @@
       color: #555;
       margin-bottom: 1rem;
     }
+    .progress-bar-container {
+      width: 100%;
+      background-color: #eee;
+      border-radius: 4px;
+      overflow: hidden;
+      margin-bottom: 1rem;
+      height: 16px;
+    }
+    .progress-bar {
+      height: 100%;
+      background-color: #4caf50;
+      width: 0%;
+      transition: width 0.3s ease;
+    }
+    button {
+      padding: 0.5rem 1rem;
+      margin-top: 1rem;
+      cursor: pointer;
+      border: none;
+      background-color: #4caf50;
+      color: white;
+      border-radius: 4px;
+    }
   </style>
 </head>
 <body>
@@ -29,10 +52,15 @@
   <h1 id="title"></h1>
   <div class="meta" id="game"></div>
   <p id="description"></p>
+  <div class="progress-bar-container">
+    <div class="progress-bar" id="progress-bar"></div>
+  </div>
   <p id="progress"></p>
 
   <h2>Objectives</h2>
   <ul id="objectives"></ul>
+
+  <button id="reset-btn" style="display:none;">Reset Progress</button>
 
   <script>
     // -------------------------
@@ -55,6 +83,11 @@ const supabaseClient = supabase.createClient(
 
     let currentChallenge = null;
     let isEditable = false;
+
+    const objectivesList = document.getElementById("objectives");
+    const progressBar = document.getElementById("progress-bar");
+    const progressText = document.getElementById("progress");
+    const resetBtn = document.getElementById("reset-btn");
 
     // -------------------------
     // Load challenge
@@ -94,14 +127,15 @@ const supabaseClient = supabase.createClient(
       document.getElementById("game").textContent = "Game: " + data.game;
       document.getElementById("description").textContent = data.description;
 
-      const list = document.getElementById("objectives");
-      list.innerHTML = "";
+      objectivesList.innerHTML = "";
+      resetBtn.style.display = isEditable ? "inline-block" : "none";
 
       function updateProgress() {
         const completed = data.objectives.filter(o => o.done).length;
         const total = data.objectives.length;
-        document.getElementById("progress").textContent =
-          `Progress: ${completed} / ${total} (${Math.round((completed / total) * 100)}%)`;
+        const percent = total ? (completed / total) * 100 : 0;
+        progressText.textContent = `Progress: ${completed} / ${total} (${Math.round(percent)}%)`;
+        progressBar.style.width = percent + "%";
       }
 
       data.objectives.forEach((obj, index) => {
@@ -115,7 +149,6 @@ const supabaseClient = supabase.createClient(
 
         checkbox.addEventListener("change", async () => {
           if (!isEditable) return;
-
           data.objectives[index].done = checkbox.checked;
           updateProgress();
           await saveProgress();
@@ -123,8 +156,15 @@ const supabaseClient = supabase.createClient(
 
         li.appendChild(checkbox);
         li.appendChild(document.createTextNode(obj.text));
-        list.appendChild(li);
+        objectivesList.appendChild(li);
       });
+
+      resetBtn.onclick = async () => {
+        if (!isEditable) return;
+        data.objectives.forEach(o => o.done = false);
+        renderChallenge(data);
+        await saveProgress();
+      };
 
       updateProgress();
     }
@@ -141,9 +181,7 @@ const supabaseClient = supabase.createClient(
         .eq("id", currentChallenge.id)
         .select();
 
-      if (error) {
-        console.error("Error saving progress:", error.message);
-      }
+      if (error) console.error("Error saving progress:", error.message);
     }
 
     // -------------------------
