@@ -1,38 +1,66 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <title>Game Challenges</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta charset="UTF-8">
+  <title>Challenge Tracker</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
   <style>
-    body {
-      font-family: system-ui, sans-serif;
-      max-width: 700px;
-      margin: 4rem auto;
-      padding: 1rem;
-      line-height: 1.6;
-    }
-    h1 {
-      font-size: 2.5rem;
-    }
-    button {
-      font-size: 1rem;
-      padding: 0.75rem 1.25rem;
-      cursor: pointer;
-    }
+    body { font-family: system-ui, sans-serif; max-width:700px; margin:3rem auto; padding:1rem; }
+    h1,h2 { text-align:center; }
+    button { display:block; margin:1rem auto; padding:0.5rem 1rem; font-size:1rem; border:none; border-radius:4px; background-color:#4caf50; color:white; cursor:pointer; }
+    ul { list-style:none; padding:0; }
+    li { margin:0.5rem 0; border-bottom:1px solid #ddd; padding:0.5rem 0; }
+    a { color:#4caf50; text-decoration:none; }
+    .meta { color:#555; font-size:0.9rem; }
   </style>
 </head>
 <body>
-  <h1>Custom Game Challenges</h1>
-  <p>
-    Create, track, and share custom challenges for any game —
-    including challenges not supported in-game.
-  </p>
-  <p>
-    Perfect for things like Nuzlockes, challenge runs, and self-imposed achievements.
-  </p>
-  <a href="create.html">
-  <button>Create a Challenge</button>
-</a>
+
+  <h1>Challenge Tracker</h1>
+  <button onclick="window.location.href='create.html'">Create a New Challenge</button>
+
+  <h2>Recent Challenges</h2>
+  <ul id="challenge-list">
+    <li>Loading challenges...</li>
+  </ul>
+
+  <script>
+    const SUPABASE_URL = "https://ffbqgczghzervntyhfvd.supabase.co";
+    const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZmYnFnY3pnaHplcnZudHloZnZkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjgzNzU1MTAsImV4cCI6MjA4Mzk1MTUxMH0.N8eowQR-yhK9Hd6PrvxdHR30GYWc7U2xGdzJNw4u5U4";
+
+    const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    const challengeList = document.getElementById("challenge-list");
+
+    async function loadChallenges() {
+      const { data, error } = await supabaseClient
+        .from("challenges")
+        .select("*")
+        .order("created_at", { ascending: false })
+        .limit(10);
+
+      if (error) { challengeList.innerHTML = "<li>Error loading challenges.</li>"; console.error(error); return; }
+      if (!data || data.length === 0) { challengeList.innerHTML = "<li>No challenges yet.</li>"; return; }
+
+      challengeList.innerHTML = "";
+      data.forEach(ch => {
+        const li = document.createElement("li");
+        const link = document.createElement("a");
+        link.href = `view.html?id=${ch.id}`;
+        link.textContent = ch.title;
+
+        const meta = document.createElement("div");
+        meta.className = "meta";
+        meta.textContent = `Game: ${ch.game}`;
+
+        li.appendChild(link);
+        li.appendChild(meta);
+        challengeList.appendChild(li);
+      });
+    }
+
+    loadChallenges();
+  </script>
+
 </body>
 </html>

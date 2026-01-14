@@ -6,45 +6,13 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
   <style>
-    body {
-      font-family: system-ui, sans-serif;
-      max-width: 700px;
-      margin: 3rem auto;
-      padding: 1rem;
-    }
-    ul {
-      padding-left: 1.25rem;
-    }
-    li {
-      margin-bottom: 0.5rem;
-    }
-    .meta {
-      color: #555;
-      margin-bottom: 1rem;
-    }
-    .progress-bar-container {
-      width: 100%;
-      background-color: #eee;
-      border-radius: 4px;
-      overflow: hidden;
-      margin-bottom: 1rem;
-      height: 16px;
-    }
-    .progress-bar {
-      height: 100%;
-      background-color: #4caf50;
-      width: 0%;
-      transition: width 0.3s ease;
-    }
-    button {
-      padding: 0.5rem 1rem;
-      margin-top: 1rem;
-      cursor: pointer;
-      border: none;
-      background-color: #4caf50;
-      color: white;
-      border-radius: 4px;
-    }
+    body { font-family: system-ui, sans-serif; max-width:700px; margin:3rem auto; padding:1rem; }
+    ul { padding-left:1.25rem; }
+    li { margin-bottom:0.5rem; }
+    .meta { color:#555; margin-bottom:1rem; }
+    .progress-bar-container { width:100%; background-color:#eee; border-radius:4px; overflow:hidden; margin-bottom:1rem; height:16px; }
+    .progress-bar { height:100%; background-color:#4caf50; width:0%; transition: width 0.3s ease; }
+    button { padding:0.5rem 1rem; margin-top:1rem; cursor:pointer; border:none; border-radius:4px; background-color:#4caf50; color:white; }
   </style>
 </head>
 <body>
@@ -52,31 +20,20 @@
   <h1 id="title"></h1>
   <div class="meta" id="game"></div>
   <p id="description"></p>
-  <div class="progress-bar-container">
-    <div class="progress-bar" id="progress-bar"></div>
-  </div>
+  <div class="progress-bar-container"><div class="progress-bar" id="progress-bar"></div></div>
   <p id="progress"></p>
 
   <h2>Objectives</h2>
   <ul id="objectives"></ul>
 
   <button id="reset-btn" style="display:none;">Reset Progress</button>
+  <button id="share-btn">Copy Share Link</button>
 
   <script>
-    // -------------------------
-    // Supabase setup
-    // -------------------------
     const SUPABASE_URL = "https://ffbqgczghzervntyhfvd.supabase.co";
-const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZmYnFnY3pnaHplcnZudHloZnZkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjgzNzU1MTAsImV4cCI6MjA4Mzk1MTUxMH0.N8eowQR-yhK9Hd6PrvxdHR30GYWc7U2xGdzJNw4u5U4";
+    const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZmYnFnY3pnaHplcnZudHloZnZkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjgzNzU1MTAsImV4cCI6MjA4Mzk1MTUxMH0.N8eowQR-yhK9Hd6PrvxdHR30GYWc7U2xGdzJNw4u5U4";
+    const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-const supabaseClient = supabase.createClient(
-  SUPABASE_URL,
-  SUPABASE_ANON_KEY
-);
-
-    // -------------------------
-    // Globals
-    // -------------------------
     const params = new URLSearchParams(window.location.search);
     const challengeId = params.get("id");
     const editKey = params.get("edit");
@@ -88,10 +45,8 @@ const supabaseClient = supabase.createClient(
     const progressBar = document.getElementById("progress-bar");
     const progressText = document.getElementById("progress");
     const resetBtn = document.getElementById("reset-btn");
+    const shareBtn = document.getElementById("share-btn");
 
-    // -------------------------
-    // Load challenge
-    // -------------------------
     async function loadChallenge() {
       if (challengeId) {
         const { data, error } = await supabaseClient
@@ -99,94 +54,78 @@ const supabaseClient = supabase.createClient(
           .select("*")
           .eq("id", challengeId)
           .single();
-
-        if (error || !data) {
-          document.body.innerHTML = "<p>Challenge not found.</p>";
-          return;
-        }
-
+        if (error || !data) { document.body.innerHTML="<p>Challenge not found.</p>"; return; }
         renderChallenge(data);
       } else {
         const local = JSON.parse(localStorage.getItem("currentChallenge"));
-        if (!local) {
-          document.body.innerHTML = "<p>No challenge found.</p>";
-          return;
-        }
+        if (!local) { document.body.innerHTML="<p>No challenge found.</p>"; return; }
         renderChallenge(local);
       }
     }
 
-    // -------------------------
-    // Render challenge
-    // -------------------------
     function renderChallenge(data) {
       currentChallenge = data;
-      isEditable = editKey && data.edit_key && editKey === data.edit_key;
+      isEditable = editKey && data.edit_key && editKey===data.edit_key;
 
       document.getElementById("title").textContent = data.title;
-      document.getElementById("game").textContent = "Game: " + data.game;
+      document.getElementById("game").textContent = "Game: "+data.game;
       document.getElementById("description").textContent = data.description;
 
       objectivesList.innerHTML = "";
       resetBtn.style.display = isEditable ? "inline-block" : "none";
 
       function updateProgress() {
-        const completed = data.objectives.filter(o => o.done).length;
+        const completed = data.objectives.filter(o=>o.done).length;
         const total = data.objectives.length;
-        const percent = total ? (completed / total) * 100 : 0;
+        const percent = total ? (completed/total)*100 : 0;
         progressText.textContent = `Progress: ${completed} / ${total} (${Math.round(percent)}%)`;
-        progressBar.style.width = percent + "%";
+        progressBar.style.width = percent+"%";
       }
 
-      data.objectives.forEach((obj, index) => {
-        const li = document.createElement("li");
-
-        const checkbox = document.createElement("input");
-        checkbox.type = "checkbox";
-        checkbox.checked = obj.done;
-        checkbox.disabled = !isEditable;
-        checkbox.style.marginRight = "0.5rem";
-
-        checkbox.addEventListener("change", async () => {
-          if (!isEditable) return;
-          data.objectives[index].done = checkbox.checked;
+      data.objectives.forEach((obj,index)=>{
+        const li=document.createElement("li");
+        const checkbox=document.createElement("input");
+        checkbox.type="checkbox";
+        checkbox.checked=obj.done;
+        checkbox.disabled=!isEditable;
+        checkbox.style.marginRight="0.5rem";
+        checkbox.addEventListener("change", async ()=>{
+          if(!isEditable) return;
+          data.objectives[index].done=checkbox.checked;
           updateProgress();
           await saveProgress();
         });
-
         li.appendChild(checkbox);
         li.appendChild(document.createTextNode(obj.text));
         objectivesList.appendChild(li);
       });
 
-      resetBtn.onclick = async () => {
-        if (!isEditable) return;
-        data.objectives.forEach(o => o.done = false);
+      resetBtn.onclick=async ()=>{
+        if(!isEditable) return;
+        data.objectives.forEach(o=>o.done=false);
         renderChallenge(data);
         await saveProgress();
+      };
+
+      shareBtn.onclick = () => {
+        const url = window.location.href;
+        navigator.clipboard.writeText(url).then(() => alert("Link copied to clipboard!"))
+          .catch(err=>{console.error("Failed to copy link:",err); alert("Could not copy link.")});
       };
 
       updateProgress();
     }
 
-    // -------------------------
-    // Save progress to Supabase
-    // -------------------------
     async function saveProgress() {
-      if (!isEditable) return;
-
+      if(!isEditable) return;
       const { error } = await supabaseClient
         .from("challenges")
         .update({ objectives: currentChallenge.objectives })
         .eq("id", currentChallenge.id)
         .select();
-
-      if (error) console.error("Error saving progress:", error.message);
+      if(error) console.error("Error saving progress:", error.message);
     }
 
-    // -------------------------
-    // Initialize
-    // -------------------------
     loadChallenge();
   </script>
 
