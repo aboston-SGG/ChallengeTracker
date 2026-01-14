@@ -99,6 +99,14 @@ const supabaseClient = supabase.createClient(
       checkbox.disabled = true;
       checkbox.style.marginRight = "0.5rem";
 
+checkbox.addEventListener("change", async () => {
+  if (!isEditable) return;
+
+  data.objectives[index].done = checkbox.checked;
+  updateProgress();
+  await saveProgress(); // NEW: persist to database
+});
+
       li.appendChild(checkbox);
       li.appendChild(document.createTextNode(obj.text));
       list.appendChild(li);
@@ -106,6 +114,21 @@ const supabaseClient = supabase.createClient(
 
     updateProgress();
   }
+
+async function saveProgress() {
+  if (!isEditable) return;
+
+  const { error } = await supabaseClient
+    .from("challenges")
+    .update({ objectives: data.objectives })
+    .eq("id", data.id)
+    .select();
+
+  if (error) {
+    console.error("Error saving progress:", error.message);
+  }
+}
+
 
   loadChallenge();
 </script>
