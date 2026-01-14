@@ -1,11 +1,10 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<script src="https://unpkg.com/@supabase/supabase-js@2"></script>
-
   <meta charset="UTF-8" />
   <title>View Challenge</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
   <style>
     body {
       font-family: system-ui, sans-serif;
@@ -36,8 +35,10 @@
   <ul id="objectives"></ul>
 
   <script>
-
-const SUPABASE_URL = "https://ffbqgczghzervntyhfvd.supabase.co";
+    // -------------------------
+    // Supabase setup
+    // -------------------------
+    const SUPABASE_URL = "https://ffbqgczghzervntyhfvd.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZmYnFnY3pnaHplcnZudHloZnZkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjgzNzU1MTAsImV4cCI6MjA4Mzk1MTUxMH0.N8eowQR-yhK9Hd6PrvxdHR30GYWc7U2xGdzJNw4u5U4";
 
 const supabaseClient = supabase.createClient(
@@ -45,94 +46,111 @@ const supabaseClient = supabase.createClient(
   SUPABASE_ANON_KEY
 );
 
-  const params = new URLSearchParams(window.location.search);
-  const challengeId = params.get("id");
-  const editKey = params.get("edit");
+    // -------------------------
+    // Globals
+    // -------------------------
+    const params = new URLSearchParams(window.location.search);
+    const challengeId = params.get("id");
+    const editKey = params.get("edit");
 
-  async function loadChallenge() {
-    if (challengeId) {
-      const { data, error } = await supabaseClient
-  	.from("challenges")
-        .select("*")
-        .eq("id", challengeId)
-        .single();
+    let currentChallenge = null;
+    let isEditable = false;
 
-      if (error || !data) {
-        document.body.innerHTML = "<p>Challenge not found.</p>";
-        return;
+    // -------------------------
+    // Load challenge
+    // -------------------------
+    async function loadChallenge() {
+      if (challengeId) {
+        const { data, error } = await supabaseClient
+          .from("challenges")
+          .select("*")
+          .eq("id", challengeId)
+          .single();
+
+        if (error || !data) {
+          document.body.innerHTML = "<p>Challenge not found.</p>";
+          return;
+        }
+
+        renderChallenge(data);
+      } else {
+        const local = JSON.parse(localStorage.getItem("currentChallenge"));
+        if (!local) {
+          document.body.innerHTML = "<p>No challenge found.</p>";
+          return;
+        }
+        renderChallenge(local);
       }
-
-      renderChallenge(data);
-    } else {
-      const local = JSON.parse(localStorage.getItem("currentChallenge"));
-      if (!local) {
-        document.body.innerHTML = "<p>No challenge found.</p>";
-        return;
-      }
-      renderChallenge(local);
-    }
-  }
-
-  function renderChallenge(data) {
-    const isEditable = editKey && data.edit_key && editKey === data.edit_key;
-
-    document.getElementById("title").textContent = data.title;
-    document.getElementById("game").textContent = "Game: " + data.game;
-    document.getElementById("description").textContent = data.description;
-
-    const list = document.getElementById("objectives");
-    list.innerHTML = "";
-
-    function updateProgress() {
-      const completed = data.objectives.filter(o => o.done).length;
-      const total = data.objectives.length;
-      document.getElementById("progress").textContent =
-        `Progress: ${completed} / ${total} (${Math.round((completed / total) * 100)}%)`;
     }
 
-    data.objectives.forEach(obj => {
-      const li = document.createElement("li");
+    // -------------------------
+    // Render challenge
+    // -------------------------
+    function renderChallenge(data) {
+      currentChallenge = data;
+      isEditable = editKey && data.edit_key && editKey === data.edit_key;
 
-      const checkbox = document.createElement("input");
-      checkbox.type = "checkbox";
-      checkbox.checked = obj.done;
-      checkbox.disabled = true;
-      checkbox.style.marginRight = "0.5rem";
+      document.getElementById("title").textContent = data.title;
+      document.getElementById("game").textContent = "Game: " + data.game;
+      document.getElementById("description").textContent = data.description;
 
-checkbox.addEventListener("change", async () => {
-  if (!isEditable) return;
+      const list = document.getElementById("objectives");
+      list.innerHTML = "";
 
-  data.objectives[index].done = checkbox.checked;
-  updateProgress();
-  await saveProgress(); // NEW: persist to database
-});
+      function updateProgress() {
+        const completed = data.objectives.filter(o => o.done).length;
+        const total = data.objectives.length;
+        document.getElementById("progress").textContent =
+          `Progress: ${completed} / ${total} (${Math.round((completed / total) * 100)}%)`;
+      }
 
-      li.appendChild(checkbox);
-      li.appendChild(document.createTextNode(obj.text));
-      list.appendChild(li);
-    });
+      data.objectives.forEach((obj, index) => {
+        const li = document.createElement("li");
 
-    updateProgress();
-  }
+        const checkbox = document.createElement("input");
+        checkbox.type = "checkbox";
+        checkbox.checked = obj.done;
+        checkbox.disabled = !isEditable;
+        checkbox.style.marginRight = "0.5rem";
 
-async function saveProgress() {
-  if (!isEditable) return;
+        checkbox.addEventListener("change", async () => {
+          if (!isEditable) return;
 
-  const { error } = await supabaseClient
-    .from("challenges")
-    .update({ objectives: data.objectives })
-    .eq("id", data.id)
-    .select();
+          data.objectives[index].done = checkbox.checked;
+          updateProgress();
+          await saveProgress();
+        });
 
-  if (error) {
-    console.error("Error saving progress:", error.message);
-  }
-}
+        li.appendChild(checkbox);
+        li.appendChild(document.createTextNode(obj.text));
+        list.appendChild(li);
+      });
 
+      updateProgress();
+    }
 
-  loadChallenge();
-</script>
+    // -------------------------
+    // Save progress to Supabase
+    // -------------------------
+    async function saveProgress() {
+      if (!isEditable) return;
 
+      const { error } = await supabaseClient
+        .from("challenges")
+        .update({ objectives: currentChallenge.objectives })
+        .eq("id", currentChallenge.id)
+        .select();
+
+      if (error) {
+        console.error("Error saving progress:", error.message);
+      }
+    }
+
+    // -------------------------
+    // Initialize
+    // -------------------------
+    loadChallenge();
+  </script>
 
 </body>
 </html>
