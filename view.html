@@ -1,6 +1,8 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+<script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+
   <meta charset="UTF-8" />
   <title>View Challenge</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -34,44 +36,68 @@
   <ul id="objectives"></ul>
 
   <script>
-  const data = JSON.parse(localStorage.getItem("currentChallenge"));
+
+const SUPABASE_URL = "https://ffbqgczghzervntyhfvd.supabase.co";
+const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZmYnFnY3pnaHplcnZudHloZnZkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjgzNzU1MTAsImV4cCI6MjA4Mzk1MTUxMH0.N8eowQR-yhK9Hd6PrvxdHR30GYWc7U2xGdzJNw4u5U4";
+
+const supabase = supabaseJs.createClient(
+  SUPABASE_URL,
+  SUPABASE_ANON_KEY
+);
+
   const params = new URLSearchParams(window.location.search);
+  const challengeId = params.get("id");
   const editKey = params.get("edit");
 
-  const isEditable = data && editKey && editKey === data.editKey;
+  async function loadChallenge() {
+    if (challengeId) {
+      const { data, error } = await supabase
+        .from("challenges")
+        .select("*")
+        .eq("id", challengeId)
+        .single();
 
-  if (!data) {
-    document.body.innerHTML = "<p>No challenge found.</p>";
-  } else {
+      if (error || !data) {
+        document.body.innerHTML = "<p>Challenge not found.</p>";
+        return;
+      }
+
+      renderChallenge(data);
+    } else {
+      const local = JSON.parse(localStorage.getItem("currentChallenge"));
+      if (!local) {
+        document.body.innerHTML = "<p>No challenge found.</p>";
+        return;
+      }
+      renderChallenge(local);
+    }
+  }
+
+  function renderChallenge(data) {
+    const isEditable = editKey && data.edit_key && editKey === data.edit_key;
+
     document.getElementById("title").textContent = data.title;
     document.getElementById("game").textContent = "Game: " + data.game;
     document.getElementById("description").textContent = data.description;
 
     const list = document.getElementById("objectives");
+    list.innerHTML = "";
 
     function updateProgress() {
       const completed = data.objectives.filter(o => o.done).length;
       const total = data.objectives.length;
       document.getElementById("progress").textContent =
         `Progress: ${completed} / ${total} (${Math.round((completed / total) * 100)}%)`;
-
-      localStorage.setItem("currentChallenge", JSON.stringify(data));
     }
 
-    data.objectives.forEach((obj, index) => {
+    data.objectives.forEach(obj => {
       const li = document.createElement("li");
 
       const checkbox = document.createElement("input");
       checkbox.type = "checkbox";
       checkbox.checked = obj.done;
-      checkbox.disabled = !isEditable;
+      checkbox.disabled = true;
       checkbox.style.marginRight = "0.5rem";
-
-      checkbox.addEventListener("change", () => {
-        if (!isEditable) return;
-        data.objectives[index].done = checkbox.checked;
-        updateProgress();
-      });
 
       li.appendChild(checkbox);
       li.appendChild(document.createTextNode(obj.text));
@@ -80,6 +106,8 @@
 
     updateProgress();
   }
+
+  loadChallenge();
 </script>
 
 
