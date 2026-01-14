@@ -1,6 +1,8 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+<script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+
   <meta charset="UTF-8" />
   <title>Create Challenge</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -60,40 +62,52 @@
   </form>
 
 <script>
+const SUPABASE_URL = "https://ffbqgczghzervntyhfvd.supabase.co";
+const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZmYnFnY3pnaHplcnZudHloZnZkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjgzNzU1MTAsImV4cCI6MjA4Mzk1MTUxMH0.N8eowQR-yhK9Hd6PrvxdHR30GYWc7U2xGdzJNw4u5U4";
+
+const supabaseClient = supabase.createClient(
+  SUPABASE_URL,
+  SUPABASE_ANON_KEY
+);
   const form = document.getElementById("challengeForm");
 
   function generateKey() {
     return Math.random().toString(36).substring(2, 10);
   }
 
-  form.addEventListener("submit", function (e) {
-    e.preventDefault();
+  form.addEventListener("submit", async function (e) {
+  e.preventDefault();
 
-    const title = form.querySelector('input[placeholder="Nuzlocke Run"]').value;
-    const game = form.querySelector('input[placeholder="Pokémon Emerald"]').value;
-    const description = form.querySelector('textarea').value;
-    const objectivesText = form.querySelectorAll('textarea')[1].value;
+  const title = form.querySelector('input[placeholder="Nuzlocke Run"]').value;
+  const game = form.querySelector('input[placeholder="Pokémon Emerald"]').value;
+  const description = form.querySelector('textarea').value;
+  const objectivesText = form.querySelectorAll('textarea')[1].value;
 
-    const objectives = objectivesText
-      .split("\n")
-      .map(o => o.trim())
-      .filter(o => o.length > 0)
-      .map(o => ({ text: o, done: false }));
+  const objectives = objectivesText
+    .split("\n")
+    .map(o => o.trim())
+    .filter(o => o.length > 0)
+    .map(o => ({ text: o, done: false }));
 
-    const editKey = generateKey();
+  const editKey = Math.random().toString(36).substring(2, 10);
 
-    const challenge = {
-      title,
-      game,
-      description,
-      objectives,
-      editKey
-    };
+  // Insert into Supabase
+  const { data, error } = await supabaseClient
+    .from("challenges")
+    .insert([
+      { title, game, description, objectives, edit_key: editKey }
+    ])
+    .select()
+    .single();
 
-    localStorage.setItem("currentChallenge", JSON.stringify(challenge));
+  if (error) {
+    alert("Error saving challenge: " + error.message);
+    return;
+  }
 
-    window.location.href = `view.html?edit=${editKey}`;
-  });
+  // Redirect to permanent URL
+  window.location.href = `view.html?id=${data.id}&edit=${editKey}`;
+});
 </script>
 
 </body>
