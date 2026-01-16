@@ -1,6 +1,8 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+    <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+
   <meta charset="UTF-8" />
   <title>Browse Challenges</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -9,12 +11,39 @@
 
 <nav>
   <a href="index.html">Home</a>
-  <a href="create.html">Create Challenge</a>
+  <a href="create.html">Create</a>
   <a href="browse.html">Browse</a>
+  <a href="auth.html" id="auth-link">Login</a>
 </nav>
+
 
 <h1>Browse Challenges</h1>
 <p>Coming soon.</p>
 
+<script>
+    const SUPABASE_URL = "https://ffbqgczghzervntyhfvd.supabase.co";
+    const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZmYnFnY3pnaHplcnZudHloZnZkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjgzNzU1MTAsImV4cCI6MjA4Mzk1MTUxMH0.N8eowQR-yhK9Hd6PrvxdHR30GYWc7U2xGdzJNw4u5U4";
+    const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+    const {
+  data: { user },
+} = await supabaseClient.auth.getUser();
+
+if (!user) {
+  console.log("Not logged in");
+} else {
+  console.log("Logged in as", user.email);
+}
+
+const { data } = await supabaseClient.auth.getUser();
+if (data.user) {
+  document.getElementById("auth-link").textContent = "Logout";
+  document.getElementById("auth-link").onclick = async (e) => {
+    e.preventDefault();
+    await supabaseClient.auth.signOut();
+    location.reload();
+  };
+}
+</script>
 </body>
 </html>

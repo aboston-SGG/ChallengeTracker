@@ -5,6 +5,7 @@
   <title>View Challenge</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+
   <style>
     body { font-family: system-ui, sans-serif; max-width:700px; margin:3rem auto; padding:1rem; }
     ul { padding-left:1.25rem; }
@@ -34,9 +35,11 @@ nav a:hover {
 <body>
 <nav>
   <a href="index.html">Home</a>
-  <a href="create.html">Create Challenge</a>
+  <a href="create.html">Create</a>
   <a href="browse.html">Browse</a>
+  <a href="auth.html" id="auth-link">Login</a>
 </nav>
+
 
   <h1 id="title"></h1>
   <div class="meta" id="game"></div>
@@ -148,6 +151,25 @@ nav a:hover {
     }
 
     loadChallenge();
+
+    const {
+  data: { user },
+} = await supabaseClient.auth.getUser();
+
+if (!user) {
+  console.log("Not logged in");
+} else {
+  console.log("Logged in as", user.email);
+}
+const { data } = await supabaseClient.auth.getUser();
+if (data.user) {
+  document.getElementById("auth-link").textContent = "Logout";
+  document.getElementById("auth-link").onclick = async (e) => {
+    e.preventDefault();
+    await supabaseClient.auth.signOut();
+    location.reload();
+  };
+}
   </script>
 
 </body>

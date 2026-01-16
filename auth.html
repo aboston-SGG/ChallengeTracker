@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8" />
+  <title>Sign In</title>
+</head>
+<body>
+
+<h1>Sign In / Sign Up</h1>
+
+<input id="email" type="email" placeholder="Email" />
+<input id="password" type="password" placeholder="Password" />
+<button id="login">Login</button>
+<button id="signup">Sign Up</button>
+
+<p id="status"></p>
+
+<script>
+const SUPABASE_URL = "https://ffbqgczghzervntyhfvd.supabase.co";
+    const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZmYnFnY3pnaHplcnZudHloZnZkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjgzNzU1MTAsImV4cCI6MjA4Mzk1MTUxMH0.N8eowQR-yhK9Hd6PrvxdHR30GYWc7U2xGdzJNw4u5U4";
+    const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+const email = document.getElementById("email");
+const password = document.getElementById("password");
+const status = document.getElementById("status");
+
+document.getElementById("signup").onclick = async () => {
+  const { error } = await supabaseClient.auth.signUp({
+    email: email.value,
+    password: password.value,
+  });
+
+  status.textContent = error ? error.message : "Account created!";
+};
+
+document.getElementById("login").onclick = async () => {
+  const { error } = await supabaseClient.auth.signInWithPassword({
+    email: email.value,
+    password: password.value,
+  });
+
+  if (error) {
+    status.textContent = error.message;
+  } else {
+    window.location.href = "index.html";
+  }
+};
+
+const { data } = await supabaseClient.auth.getUser();
+if (data.user) {
+  document.getElementById("auth-link").textContent = "Logout";
+  document.getElementById("auth-link").onclick = async (e) => {
+    e.preventDefault();
+    await supabaseClient.auth.signOut();
+    location.reload();
+  };
+}
+</script>
+
+</body>
+</html>
