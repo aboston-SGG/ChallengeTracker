@@ -1,38 +1,32 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <title>Challenge Tracker</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta charset="UTF-8" />
+  <title>Game Challenges</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
   <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
 
   <style>
-    body { font-family: system-ui, sans-serif; max-width:700px; margin:3rem auto; padding:1rem; }
-    h1,h2 { text-align:center; }
-    button { display:block; margin:1rem auto; padding:0.5rem 1rem; font-size:1rem; border:none; border-radius:4px; background-color:#4caf50; color:white; cursor:pointer; }
-    ul { list-style:none; padding:0; }
-    li { margin:0.5rem 0; border-bottom:1px solid #ddd; padding:0.5rem 0; }
-    a { color:#4caf50; text-decoration:none; }
-    .meta { color:#555; font-size:0.9rem; }
+    body {
+      font-family: system-ui, sans-serif;
+      max-width: 800px;
+      margin: 3rem auto;
+      padding: 1rem;
+    }
     nav {
-  display: flex;
-  gap: 1rem;
-  margin-bottom: 2rem;
-}
-
-nav a {
-  text-decoration: none;
-  font-weight: 600;
-  color: #0066cc;
-}
-
-nav a:hover {
-  text-decoration: underline;
-}
-
+      display: flex;
+      gap: 1rem;
+      margin-bottom: 2rem;
+    }
+    nav a {
+      font-weight: 600;
+      text-decoration: none;
+      color: #0066cc;
+    }
   </style>
 </head>
 <body>
+
 <nav>
   <a href="index.html">Home</a>
   <a href="create.html">Create</a>
@@ -40,70 +34,64 @@ nav a:hover {
   <a href="auth.html" id="auth-link">Login</a>
 </nav>
 
+<h1>Community Challenges</h1>
 
-  <h1>Challenge Tracker</h1>
-  <button onclick="window.location.href='create.html'">Create a New Challenge</button>
+<h2>Recent Challenges</h2>
+<ul id="recent-challenges"></ul>
 
-  <h2>Recent Challenges</h2>
-  <ul id="challenge-list">
-    <li>Loading challenges...</li>
-  </ul>
-
-  <script>
-    const SUPABASE_URL = "https://ffbqgczghzervntyhfvd.supabase.co";
+<script>
+const SUPABASE_URL = "https://ffbqgczghzervntyhfvd.supabase.co";
     const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZmYnFnY3pnaHplcnZudHloZnZkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjgzNzU1MTAsImV4cCI6MjA4Mzk1MTUxMH0.N8eowQR-yhK9Hd6PrvxdHR30GYWc7U2xGdzJNw4u5U4";
 
-    const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-    const challengeList = document.getElementById("challenge-list");
 
-    async function loadChallenges() {
-      const { data, error } = await supabaseClient
-        .from("challenges")
-        .select("*")
-        .order("created_at", { ascending: false })
-        .limit(10);
+const supabaseClient = supabase.createClient(
+  SUPABASE_URL,
+  SUPABASE_ANON_KEY
+);
 
-      if (error) { challengeList.innerHTML = "<li>Error loading challenges.</li>"; console.error(error); return; }
-      if (!data || data.length === 0) { challengeList.innerHTML = "<li>No challenges yet.</li>"; return; }
+async function setupAuth() {
+  const { data: { user } } = await supabaseClient.auth.getUser();
+  const authLink = document.getElementById("auth-link");
 
-      challengeList.innerHTML = "";
-      data.forEach(ch => {
-        const li = document.createElement("li");
-        const link = document.createElement("a");
-        link.href = `view.html?id=${ch.id}`;
-        link.textContent = ch.title;
-
-        const meta = document.createElement("div");
-        meta.className = "meta";
-        meta.textContent = `Game: ${ch.game}`;
-
-        li.appendChild(link);
-        li.appendChild(meta);
-        challengeList.appendChild(li);
-      });
-    }
-
-    loadChallenges();
-
-    const {
-  data: { user },
-} = await supabaseClient.auth.getUser();
-
-if (!user) {
-  console.log("Not logged in");
-} else {
-  console.log("Logged in as", user.email);
+  if (user) {
+    authLink.textContent = "Logout";
+    authLink.onclick = async (e) => {
+      e.preventDefault();
+      await supabaseClient.auth.signOut();
+      location.reload();
+    };
+  }
 }
-const { data } = await supabaseClient.auth.getUser();
-if (data.user) {
-  document.getElementById("auth-link").textContent = "Logout";
-  document.getElementById("auth-link").onclick = async (e) => {
-    e.preventDefault();
-    await supabaseClient.auth.signOut();
-    location.reload();
-  };
+
+async function loadRecentChallenges() {
+  const list = document.getElementById("recent-challenges");
+
+  const { data, error } = await supabaseClient
+    .from("challenges")
+    .select("id, title, game, created_at")
+    .order("created_at", { ascending: false })
+    .limit(10);
+
+  if (error || !data) {
+    list.innerHTML = "<li>Failed to load challenges.</li>";
+    return;
+  }
+
+  list.innerHTML = "";
+
+  data.forEach(c => {
+    const li = document.createElement("li");
+    const a = document.createElement("a");
+    a.href = `view.html?id=${c.id}`;
+    a.textContent = `${c.title} (${c.game})`;
+    li.appendChild(a);
+    list.appendChild(li);
+  });
 }
-  </script>
+
+setupAuth();
+loadRecentChallenges();
+</script>
 
 </body>
 </html>
