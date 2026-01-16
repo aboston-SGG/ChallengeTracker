@@ -27,13 +27,19 @@ const supabaseClient = supabase.createClient(
   SUPABASE_ANON_KEY
 );
 
-async function loadAll() {
-  const { data } = await supabaseClient
+async function loadAllChallenges() {
+  const list = document.getElementById("list");
+
+  const { data, error } = await supabaseClient
     .from("challenges")
     .select("id, title, game")
     .order("created_at", { ascending: false });
 
-  const list = document.getElementById("list");
+  if (error) {
+    list.innerHTML = "<li>Error loading challenges</li>";
+    return;
+  }
+
   list.innerHTML = "";
 
   data.forEach(c => {
@@ -46,8 +52,9 @@ async function loadAll() {
   });
 }
 
-loadAll();
+loadAllChallenges();
 </script>
+
 
 </body>
 </html>
