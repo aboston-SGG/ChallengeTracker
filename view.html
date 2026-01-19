@@ -49,6 +49,8 @@ nav a:hover {
 
   <h2>Objectives</h2>
   <ul id="objectives"></ul>
+  <button id="add-to-my-challenges">Add to My Challenges</button>
+  <p id="add-status"></p>
 
   <button id="reset-btn" style="display:none;">Reset Progress</button>
   <button id="share-btn">Copy Share Link</button>
@@ -70,6 +72,15 @@ nav a:hover {
     const progressText = document.getElementById("progress");
     const resetBtn = document.getElementById("reset-btn");
     const shareBtn = document.getElementById("share-btn");
+
+    let currentUser = null;
+
+    async function getCurrentUser() {
+      const { data } = await supabaseClient.auth.getUser();
+      currentUser = data.user;
+    }
+
+    getCurrentUser();
 
     async function loadChallenge() {
       if (challengeId) {
@@ -97,6 +108,9 @@ nav a:hover {
 
       objectivesList.innerHTML = "";
       resetBtn.style.display = isEditable ? "inline-block" : "none";
+if (!currentUser) {
+  addBtn.style.display = "none";
+}
 
       function updateProgress() {
         const completed = data.objectives.filter(o=>o.done).length;
@@ -151,6 +165,35 @@ nav a:hover {
     }
 
     loadChallenge();
+
+    const addBtn = document.getElementById("add-to-my-challenges");
+const addStatus = document.getElementById("add-status");
+
+addBtn.onclick = async () => {
+  if (!currentUser) {
+    addStatus.textContent = "You must be logged in to add challenges.";
+    return;
+  }
+
+  const { error } = await supabaseClient
+    .from("user_challenges")
+    .insert({
+      user_id: currentUser.id,
+      challenge_id: challengeId,
+      objectives: JSON.parse(JSON.stringify(currentChallenge.objectives))
+    });
+
+  if (error) {
+    if (error.code === "23505") {
+      addStatus.textContent = "You already added this challenge.";
+    } else {
+      addStatus.textContent = error.message;
+    }
+  } else {
+    addStatus.textContent = "Challenge added to your list!";
+  }
+};
+
   </script>
 
 </body>
