@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>My Challenges</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+
+  <style>
+    body {
+      font-family: system-ui, sans-serif;
+      max-width: 800px;
+      margin: 3rem auto;
+      padding: 1rem;
+    }
+    nav { display: flex; gap: 1rem; margin-bottom: 2rem; }
+    nav a { font-weight: 600; color: #0066cc; text-decoration: none; }
+    li { margin-bottom: 0.75rem; }
+    .progress { color: #555; }
+  </style>
+</head>
+<body>
+
+<nav>
+  <a href="index.html">Home</a>
+  <a href="create.html">Create</a>
+  <a href="browse.html">Browse</a>
+  <a href="my.html">My Challenges</a>
+  <a href="auth.html" id="auth-link">Login</a>
+</nav>
+
+<h1>My Challenges</h1>
+<ul id="list"></ul>
+
+<script>
+const SUPABASE_URL = "https://ffbqgczghzervntyhfvd.supabase.co";
+    const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZmYnFnY3pnaHplcnZudHloZnZkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjgzNzU1MTAsImV4cCI6MjA4Mzk1MTUxMH0.N8eowQR-yhK9Hd6PrvxdHR30GYWc7U2xGdzJNw4u5U4";
+
+const supabaseClient = supabase.createClient(
+  SUPABASE_URL,
+  SUPABASE_ANON_KEY
+);
+
+let currentUser = null;
+
+async function getUser() {
+  const { data } = await supabaseClient.auth.getUser();
+  currentUser = data.user;
+
+  if (!currentUser) {
+    document.body.innerHTML = "<p>Please log in to view your challenges.</p>";
+    return false;
+  }
+  return true;
+}
+
+async function setupNav() {
+  const link = document.getElementById("auth-link");
+  if (currentUser) {
+    link.textContent = "Logout";
+    link.onclick = async (e) => {
+      e.preventDefault();
+      await supabaseClient.auth.signOut();
+      location.reload();
+    };
+  }
+}
+
+function progressPercent(objs) {
+  const done = objs.filter(o => o.done).length;
+  return Math.round((done / objs.length) * 100);
+}
+
+async function loadMyChallenges() {
+  const { data, error } = await supabaseClient
+    .from("user_challenges")
+    .select(`
+      id,
+      objectives,
+      challenges ( title, game, id )
+    `)
+    .eq("user_id", currentUser.id);
+
+  if (error) {
+    console.error(error.message);
+    return;
+  }
+
+  const list = document.getElementById("list");
+  list.innerHTML = "";
+
+  data.forEach(row => {
+    const li = document.createElement("li");
+
+    const a = document.createElement("a");
+    a.href = `view.html?id=${row.challenges.id}`;
+    a.textContent = `${row.challenges.title} (${row.challenges.game})`;
+
+    const p = document.createElement("div");
+    p.className = "progress";
+    p.textContent = `Progress: ${progressPercent(row.objectives)}%`;
+
+    li.appendChild(a);
+    li.appendChild(p);
+    list.appendChild(li);
+  });
+}
+
+async function init() {
+  if (!(await getUser())) return;
+  await setupNav();
+  await loadMyChallenges();
+}
+
+init();
+</script>
+
+</body>
+</html>
