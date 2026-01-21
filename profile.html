@@ -14,24 +14,71 @@
 </nav>
 
 <h1>Creator Profile</h1>
+<button id="followBtn">Follow</button>
+<p id="msg"></p>
+
 <ul id="list"></ul>
 
 <script>
 const SUPABASE_URL = "https://ffbqgczghzervntyhfvd.supabase.co";
-const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZmYnFnY3pnaHplcnZudHloZnZkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjgzNzU1MTAsImV4cCI6MjA4Mzk1MTUxMH0.N8eowQR-yhK9Hd6PrvxdHR30GYWc7U2xGdzJNw4u5U4";
+const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9";
 
 const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 const params = new URLSearchParams(window.location.search);
 const creatorId = params.get("id");
 
-async function load() {
+const followBtn = document.getElementById("followBtn");
+const msg = document.getElementById("msg");
+
+async function init() {
+  const { data: userData } = await supabaseClient.auth.getUser();
+  if (!userData.user) {
+    followBtn.style.display = "none";
+    return;
+  }
+
+  const userId = userData.user.id;
+
+  const { data: existing } = await supabaseClient
+    .from("follows")
+    .select("id")
+    .eq("follower_id", userId)
+    .eq("creator_id", creatorId)
+    .maybeSingle();
+
+  if (existing) {
+    followBtn.textContent = "Unfollow";
+  }
+
+  followBtn.onclick = async () => {
+    if (followBtn.textContent === "Follow") {
+      const { error } = await supabaseClient.from("follows").insert({
+        follower_id: userId,
+        creator_id: creatorId
+      });
+      if (!error) followBtn.textContent = "Unfollow";
+    } else {
+      await supabaseClient
+        .from("follows")
+        .delete()
+        .eq("follower_id", userId)
+        .eq("creator_id", creatorId);
+      followBtn.textContent = "Follow";
+    }
+  };
+
+  loadChallenges();
+}
+
+async function loadChallenges() {
   const { data } = await supabaseClient
     .from("challenges")
     .select("id,title,game")
     .eq("creator_id", creatorId);
 
   const list = document.getElementById("list");
+  list.innerHTML = "";
 
   data.forEach(c => {
     const li = document.createElement("li");
@@ -43,7 +90,8 @@ async function load() {
   });
 }
 
-load();
+init();
 </script>
+
 </body>
 </html>
