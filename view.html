@@ -114,8 +114,9 @@ function render() {
   document.getElementById("description").textContent = baseChallenge.description;
 
   const link = document.getElementById("creator-link");
-if (data.creator_id) {
-  link.href = `profile.html?id=${data.creator_id}`;
+
+if (baseChallenge.creator_id) {
+  link.href = `profile.html?id=${baseChallenge.creator_id}`;
   link.textContent = "View Creator";
 } else {
   link.textContent = "Anonymous";
