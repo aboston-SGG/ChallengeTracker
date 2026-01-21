@@ -7,32 +7,20 @@
   <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
 
   <style>
-    body { font-family: system-ui, sans-serif; max-width:700px; margin:3rem auto; padding:1rem; }
-    ul { padding-left:1.25rem; }
-    li { margin-bottom:0.5rem; }
-    .meta { color:#555; margin-bottom:1rem; }
-    .progress-bar-container { width:100%; background-color:#eee; border-radius:4px; overflow:hidden; margin-bottom:1rem; height:16px; }
-    .progress-bar { height:100%; background-color:#4caf50; width:0%; transition: width 0.3s ease; }
-    button { padding:0.5rem 1rem; margin-top:1rem; cursor:pointer; border:none; border-radius:4px; background-color:#4caf50; color:white; }
-    nav {
-  display: flex;
-  gap: 1rem;
-  margin-bottom: 2rem;
-}
-
-nav a {
-  text-decoration: none;
-  font-weight: 600;
-  color: #0066cc;
-}
-
-nav a:hover {
-  text-decoration: underline;
-}
-
+    body {
+      font-family: system-ui, sans-serif;
+      max-width: 700px;
+      margin: 3rem auto;
+      padding: 1rem;
+    }
+    ul { padding-left: 1.25rem; }
+    li { margin-bottom: 0.5rem; }
+    .meta { color: #555; margin-bottom: 1rem; }
+    button { margin-top: 1rem; }
   </style>
 </head>
 <body>
+
 <nav>
   <a href="index.html">Home</a>
   <a href="create.html">Create</a>
@@ -40,138 +28,138 @@ nav a:hover {
   <a href="auth.html" id="auth-link">Login</a>
 </nav>
 
+<h1 id="title"></h1>
+<div class="meta" id="game"></div>
+<p id="description"></p>
+<p id="progress"></p>
 
-  <h1 id="title"></h1>
-  <div class="meta" id="game"></div>
-  <p id="description"></p>
-  <div class="progress-bar-container"><div class="progress-bar" id="progress-bar"></div></div>
-  <p id="progress"></p>
+<button id="add-to-my-challenges">Add to My Challenges</button>
+<p id="add-status"></p>
 
-  <h2>Objectives</h2>
-  <ul id="objectives"></ul>
-  <button id="add-to-my-challenges">Add to My Challenges</button>
-  <p id="add-status"></p>
+<h2>Objectives</h2>
+<ul id="objectives"></ul>
 
-  <button id="reset-btn" style="display:none;">Reset Progress</button>
-  <button id="share-btn">Copy Share Link</button>
+<script>
+const SUPABASE_URL = "https://ffbqgczghzervntyhfvd.supabase.co";
+const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZmYnFnY3pnaHplcnZudHloZnZkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjgzNzU1MTAsImV4cCI6MjA4Mzk1MTUxMH0.N8eowQR-yhK9Hd6PrvxdHR30GYWc7U2xGdzJNw4u5U4";
 
-  <script>
-    const SUPABASE_URL = "https://ffbqgczghzervntyhfvd.supabase.co";
-    const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZmYnFnY3pnaHplcnZudHloZnZkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjgzNzU1MTAsImV4cCI6MjA4Mzk1MTUxMH0.N8eowQR-yhK9Hd6PrvxdHR30GYWc7U2xGdzJNw4u5U4";
-    const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+const supabaseClient = supabase.createClient(
+  SUPABASE_URL,
+  SUPABASE_ANON_KEY
+);
 
-    const params = new URLSearchParams(window.location.search);
-    const challengeId = params.get("id");
-    const editKey = params.get("edit");
+const params = new URLSearchParams(window.location.search);
+const challengeId = params.get("id");
 
-    let currentChallenge = null;
-    let isEditable = false;
+let currentUser = null;
+let baseChallenge = null;
+let userChallenge = null;
 
-    const objectivesList = document.getElementById("objectives");
-    const progressBar = document.getElementById("progress-bar");
-    const progressText = document.getElementById("progress");
-    const resetBtn = document.getElementById("reset-btn");
-    const shareBtn = document.getElementById("share-btn");
+const addBtn = document.getElementById("add-to-my-challenges");
+const addStatus = document.getElementById("add-status");
 
-    let currentUser = null;
-
-    async function getCurrentUser() {
-      const { data } = await supabaseClient.auth.getUser();
-      currentUser = data.user;
-    }
-
-    getCurrentUser();
-
-    async function loadChallenge() {
-      if (challengeId) {
-        const { data, error } = await supabaseClient
-          .from("challenges")
-          .select("*")
-          .eq("id", challengeId)
-          .single();
-        if (error || !data) { document.body.innerHTML="<p>Challenge not found.</p>"; return; }
-        renderChallenge(data);
-      } else {
-        const local = JSON.parse(localStorage.getItem("currentChallenge"));
-        if (!local) { document.body.innerHTML="<p>No challenge found.</p>"; return; }
-        renderChallenge(local);
-      }
-    }
-
-    function renderChallenge(data) {
-      currentChallenge = data;
-      isEditable = editKey && data.edit_key && editKey===data.edit_key;
-
-      document.getElementById("title").textContent = data.title;
-      document.getElementById("game").textContent = "Game: "+data.game;
-      document.getElementById("description").textContent = data.description;
-
-      objectivesList.innerHTML = "";
-      resetBtn.style.display = isEditable ? "inline-block" : "none";
-if (!currentUser) {
-  addBtn.style.display = "none";
+async function getCurrentUser() {
+  const { data } = await supabaseClient.auth.getUser();
+  currentUser = data.user;
 }
 
-      function updateProgress() {
-        const completed = data.objectives.filter(o=>o.done).length;
-        const total = data.objectives.length;
-        const percent = total ? (completed/total)*100 : 0;
-        progressText.textContent = `Progress: ${completed} / ${total} (${Math.round(percent)}%)`;
-        progressBar.style.width = percent+"%";
-      }
+async function setupNav() {
+  const link = document.getElementById("auth-link");
+  if (currentUser) {
+    link.textContent = "Logout";
+    link.onclick = async (e) => {
+      e.preventDefault();
+      await supabaseClient.auth.signOut();
+      location.reload();
+    };
+  }
+}
 
-      data.objectives.forEach((obj,index)=>{
-        const li=document.createElement("li");
-        const checkbox=document.createElement("input");
-        checkbox.type="checkbox";
-        checkbox.checked=obj.done;
-        checkbox.disabled=!isEditable;
-        checkbox.style.marginRight="0.5rem";
-        checkbox.addEventListener("change", async ()=>{
-          if(!isEditable) return;
-          data.objectives[index].done=checkbox.checked;
-          updateProgress();
-          await saveProgress();
-        });
-        li.appendChild(checkbox);
-        li.appendChild(document.createTextNode(obj.text));
-        objectivesList.appendChild(li);
-      });
+async function loadBaseChallenge() {
+  const { data, error } = await supabaseClient
+    .from("challenges")
+    .select("*")
+    .eq("id", challengeId)
+    .single();
 
-      resetBtn.onclick=async ()=>{
-        if(!isEditable) return;
-        data.objectives.forEach(o=>o.done=false);
-        renderChallenge(data);
-        await saveProgress();
-      };
+  if (error || !data) {
+    document.body.innerHTML = "<p>Challenge not found.</p>";
+    return;
+  }
 
-      shareBtn.onclick = () => {
-        const url = window.location.href;
-        navigator.clipboard.writeText(url).then(() => alert("Link copied to clipboard!"))
-          .catch(err=>{console.error("Failed to copy link:",err); alert("Could not copy link.")});
-      };
+  baseChallenge = data;
+}
 
+async function loadUserChallenge() {
+  if (!currentUser) return;
+
+  const { data } = await supabaseClient
+    .from("user_challenges")
+    .select("*")
+    .eq("user_id", currentUser.id)
+    .eq("challenge_id", challengeId)
+    .single();
+
+  if (data) userChallenge = data;
+}
+
+function render() {
+  const source = userChallenge || baseChallenge;
+
+  document.getElementById("title").textContent = baseChallenge.title;
+  document.getElementById("game").textContent = "Game: " + baseChallenge.game;
+  document.getElementById("description").textContent = baseChallenge.description;
+
+  const list = document.getElementById("objectives");
+  list.innerHTML = "";
+
+  function updateProgress() {
+    const completed = source.objectives.filter(o => o.done).length;
+    const total = source.objectives.length;
+    document.getElementById("progress").textContent =
+      `Progress: ${completed} / ${total} (${Math.round((completed / total) * 100)}%)`;
+  }
+
+  source.objectives.forEach((obj, index) => {
+    const li = document.createElement("li");
+
+    const checkbox = document.createElement("input");
+    checkbox.type = "checkbox";
+    checkbox.checked = obj.done;
+    checkbox.disabled = !userChallenge;
+    checkbox.style.marginRight = "0.5rem";
+
+    checkbox.addEventListener("change", async () => {
+      if (!userChallenge) return;
+      userChallenge.objectives[index].done = checkbox.checked;
       updateProgress();
-    }
+      await saveProgress();
+    });
 
-    async function saveProgress() {
-      if(!isEditable) return;
-      const { error } = await supabaseClient
-        .from("challenges")
-        .update({ objectives: currentChallenge.objectives })
-        .eq("id", currentChallenge.id)
-        .select();
-      if(error) console.error("Error saving progress:", error.message);
-    }
+    li.appendChild(checkbox);
+    li.appendChild(document.createTextNode(obj.text));
+    list.appendChild(li);
+  });
 
-    loadChallenge();
+  updateProgress();
 
-    const addBtn = document.getElementById("add-to-my-challenges");
-const addStatus = document.getElementById("add-status");
+  if (!currentUser || userChallenge) {
+    addBtn.style.display = "none";
+  }
+}
+
+async function saveProgress() {
+  const { error } = await supabaseClient
+    .from("user_challenges")
+    .update({ objectives: userChallenge.objectives })
+    .eq("id", userChallenge.id);
+
+  if (error) console.error("Save error:", error.message);
+}
 
 addBtn.onclick = async () => {
   if (!currentUser) {
-    addStatus.textContent = "You must be logged in to add challenges.";
+    addStatus.textContent = "Please log in first.";
     return;
   }
 
@@ -180,21 +168,30 @@ addBtn.onclick = async () => {
     .insert({
       user_id: currentUser.id,
       challenge_id: challengeId,
-      objectives: JSON.parse(JSON.stringify(currentChallenge.objectives))
+      objectives: JSON.parse(JSON.stringify(baseChallenge.objectives))
     });
 
   if (error) {
-    if (error.code === "23505") {
-      addStatus.textContent = "You already added this challenge.";
-    } else {
-      addStatus.textContent = error.message;
-    }
+    addStatus.textContent = error.code === "23505"
+      ? "Already added."
+      : error.message;
   } else {
-    addStatus.textContent = "Challenge added to your list!";
+    addStatus.textContent = "Added to your challenges!";
+    await loadUserChallenge();
+    render();
   }
 };
 
-  </script>
+async function init() {
+  await getCurrentUser();
+  await setupNav();
+  await loadBaseChallenge();
+  await loadUserChallenge();
+  render();
+}
+
+init();
+</script>
 
 </body>
 </html>
