@@ -32,7 +32,16 @@ const followBtn = document.getElementById("followBtn");
 const msg = document.getElementById("msg");
 
 async function init() {
-  const { data: userData } = await supabaseClient.auth.getUser();
+  const { data: session } = await supabaseClient.auth.getSession();
+const user = session?.session?.user;
+
+if (!user) {
+  followBtn.style.display = "none";
+  return;
+}
+
+const userId = user.id;
+
   if (!userData.user) {
     followBtn.style.display = "none";
     return;
