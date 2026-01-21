@@ -3,6 +3,8 @@
 <head>
   <meta charset="UTF-8" />
   <title>View Challenge</title>
+  <p>By <a id="creator-link"></a></p>
+
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
 
@@ -110,6 +112,15 @@ function render() {
   document.getElementById("title").textContent = baseChallenge.title;
   document.getElementById("game").textContent = "Game: " + baseChallenge.game;
   document.getElementById("description").textContent = baseChallenge.description;
+
+  const link = document.getElementById("creator-link");
+if (data.creator_id) {
+  link.href = `profile.html?id=${data.creator_id}`;
+  link.textContent = "View Creator";
+} else {
+  link.textContent = "Anonymous";
+}
+
 
   const list = document.getElementById("objectives");
   list.innerHTML = "";

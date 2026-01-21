@@ -1,102 +1,75 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-  <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
-
-  <meta charset="UTF-8" />
-  <title>Create Challenge</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
-  <style>
-    body { font-family: system-ui, sans-serif; max-width:700px; margin:3rem auto; padding:1rem; }
-    input, textarea, button { width:100%; padding:0.5rem; margin-bottom:1rem; font-size:1rem; border-radius:4px; border:1px solid #ccc; box-sizing:border-box; }
-    button { cursor:pointer; border:none; background-color:#4caf50; color:white; }
-    label { font-weight:bold; margin-bottom:0.25rem; display:block; }
-    small { color:#555; display:block; margin-bottom:0.5rem; }
-    nav {
-  display: flex;
-  gap: 1rem;
-  margin-bottom: 2rem;
-}
-
-nav a {
-  text-decoration: none;
-  font-weight: 600;
-  color: #0066cc;
-}
-
-nav a:hover {
-  text-decoration: underline;
-}
-
-  </style>
+<meta charset="UTF-8">
+<title>Create Challenge</title>
+<script src="https://unpkg.com/@supabase/supabase-js@2"></script>
 </head>
 <body>
+
 <nav>
-  <a href="index.html">Home</a>
-  <a href="create.html">Create</a>
-  <a href="browse.html">Browse</a>
+  <a href="index.html">Home</a> |
+  <a href="browse.html">Browse</a> |
   <a href="my.html">My Challenges</a>
-  <a href="auth.html" id="auth-link">Login</a>
 </nav>
 
+<h1>Create Challenge</h1>
 
-  <h1>Create Challenge</h1>
+<input id="title" placeholder="Title"><br><br>
+<input id="game" placeholder="Game"><br><br>
+<textarea id="description" placeholder="Description"></textarea><br><br>
 
-  <form id="challenge-form">
-    <label>Challenge Title</label>
-    <input type="text" placeholder="Nuzlocke Run" required>
+<textarea id="objectives" placeholder="One objective per line"></textarea><br><br>
 
-    <label>Game</label>
-    <input type="text" placeholder="Pokémon Emerald" required>
+<button id="create">Create</button>
+<p id="status"></p>
 
-    <label>Description</label>
-    <textarea placeholder="Describe your challenge..." rows="3"></textarea>
+<script>
+const SUPABASE_URL = "https://ffbqgczghzervntyhfvd.supabase.co";
+const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZmYnFnY3pnaHplcnZudHloZnZkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjgzNzU1MTAsImV4cCI6MjA4Mzk1MTUxMH0.N8eowQR-yhK9Hd6PrvxdHR30GYWc7U2xGdzJNw4u5U4";
 
-    <label>Objectives (one per line)</label>
-    <textarea placeholder="Catch first Pokémon&#10;No healing items" rows="5" required></textarea>
+const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-    <button type="submit">Create Challenge</button>
-  </form>
+document.getElementById("create").addEventListener("click", async () => {
+  const title = document.getElementById("title").value;
+  const game = document.getElementById("game").value;
+  const description = document.getElementById("description").value;
+  const raw = document.getElementById("objectives").value;
 
-  <script>
-    const SUPABASE_URL = "https://ffbqgczghzervntyhfvd.supabase.co";
-    const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZmYnFnY3pnaHplcnZudHloZnZkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjgzNzU1MTAsImV4cCI6MjA4Mzk1MTUxMH0.N8eowQR-yhK9Hd6PrvxdHR30GYWc7U2xGdzJNw4u5U4";
+  const objectives = raw.split("\n").map(t => ({
+    text: t.trim(),
+    done: false
+  })).filter(o => o.text);
 
-    const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-    const form = document.getElementById("challenge-form");
+  const edit_key = crypto.randomUUID();
 
-    form.addEventListener("submit", async (e) => {
-      e.preventDefault();
+  const { data: userData } = await supabaseClient.auth.getUser();
+  if (!userData.user) {
+    alert("You must be logged in");
+    return;
+  }
 
-      const inputs = form.querySelectorAll("input, textarea");
-      const title = inputs[0].value.trim();
-      const game = inputs[1].value.trim();
-      const description = inputs[2].value.trim();
-      const objectivesRaw = inputs[3].value.trim();
+  const { data, error } = await supabaseClient
+    .from("challenges")
+    .insert({
+      title,
+      game,
+      description,
+      objectives,
+      edit_key,
+      creator_id: userData.user.id
+    })
+    .select()
+    .single();
 
-      if (!title || !game || !objectivesRaw) { alert("Please fill in all required fields."); return; }
+  if (error) {
+    document.getElementById("status").textContent = error.message;
+    return;
+  }
 
-      const objectives = objectivesRaw
-        .split("\n")
-        .map(o => o.trim())
-        .filter(o => o.length > 0)
-        .map(o => ({ text:o, done:false }));
-
-      const editKey = Math.random().toString(36).substring(2,10);
-
-      const { data, error } = await supabaseClient
-        .from("challenges")
-        .insert([{ title, game, description, objectives, edit_key:editKey }])
-        .select()
-        .single();
-
-      if (error) { alert("Error creating challenge: "+error.message); console.error(error); return; }
-
-      window.location.href = `view.html?id=${data.id}&edit=${editKey}`;
-    });
-
-  </script>
+  window.location.href = `view.html?id=${data.id}&edit=${edit_key}`;
+});
+</script>
 
 </body>
 </html>
