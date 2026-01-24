@@ -1,66 +1,12 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-<meta charset="UTF-8">
-<title>Create Challenge</title>
-<script src="https://unpkg.com/@supabase/supabase-js@2"></script>
-<style>
-body {
-  font-family: system-ui, sans-serif;
-  background: #0f172a;
-  color: #e5e7eb;
-  max-width: 900px;
-  margin: auto;
-  padding: 2rem;
-}
-
-nav {
-  display: flex;
-  gap: 1rem;
-  margin-bottom: 2rem;
-}
-
-nav a {
-  color: #38bdf8;
-  text-decoration: none;
-  font-weight: 600;
-}
-
-nav a:hover {
-  text-decoration: underline;
-}
-
-button {
-  background: #38bdf8;
-  border: none;
-  padding: 0.6rem 1rem;
-  border-radius: 6px;
-  font-weight: 600;
-  cursor: pointer;
-}
-
-button:hover {
-  background: #0ea5e9;
-}
-
-input, textarea {
-  width: 100%;
-  background: #020617;
-  color: white;
-  border: 1px solid #334155;
-  padding: 0.5rem;
-  border-radius: 6px;
-}
-
-ul {
-  padding-left: 1rem;
-}
-
-li {
-  margin-bottom: 0.5rem;
-}
-</style>
-
+  <meta charset="UTF-8" />
+  <title>Create Challenge</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="stylesheet" href="style.css">
+  <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+  <script src="main.js"></script>
 </head>
 <body>
 
@@ -70,65 +16,78 @@ li {
   <a href="browse.html">Browse</a>
   <a href="my.html">My Challenges</a>
   <a href="feed.html">Feed</a>
-  <a href="auth.html" id="auth-link">Login</a>
+  <a href="#" id="auth-link">Login</a>
 </nav>
 
-<h1>Create Challenge</h1>
+<div class="challenge-card">
+  <h1>Create a New Challenge</h1>
 
-<input id="title" placeholder="Title"><br><br>
-<input id="game" placeholder="Game"><br><br>
-<textarea id="description" placeholder="Description"></textarea><br><br>
+  <label>Title</label>
+  <input type="text" id="title" placeholder="Challenge title" />
 
-<textarea id="objectives" placeholder="One objective per line"></textarea><br><br>
+  <label>Game</label>
+  <input type="text" id="game" placeholder="Game name" />
 
-<button id="create">Create</button>
-<p id="status"></p>
+  <label>Description</label>
+  <textarea id="description" placeholder="Describe your challenge"></textarea>
+
+  <h2>Objectives</h2>
+  <ul id="objectives-list"></ul>
+  <input type="text" id="new-objective" placeholder="New objective" />
+  <button id="addObjectiveBtn">Add Objective</button>
+
+  <button id="createChallengeBtn">Create Challenge</button>
+  <p id="message" style="margin-top:1rem; color:#facc15;"></p>
+</div>
 
 <script>
-const SUPABASE_URL = "https://ffbqgczghzervntyhfvd.supabase.co";
-const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZmYnFnY3pnaHplcnZudHloZnZkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjgzNzU1MTAsImV4cCI6MjA4Mzk1MTUxMH0.N8eowQR-yhK9Hd6PrvxdHR30GYWc7U2xGdzJNw4u5U4";
+updateAuthLink();
 
-const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+let objectives = [];
 
-document.getElementById("create").addEventListener("click", async () => {
-  const title = document.getElementById("title").value;
-  const game = document.getElementById("game").value;
-  const description = document.getElementById("description").value;
-  const raw = document.getElementById("objectives").value;
+const user = await getCurrentUser();
+if (!user) {
+  document.getElementById("message").textContent = "Please log in to create a challenge.";
+  document.getElementById("createChallengeBtn").disabled = true;
+}
 
-  const objectives = raw.split("\n").map(t => ({
-    text: t.trim(),
-    done: false
-  })).filter(o => o.text);
+// Add objective
+document.getElementById("addObjectiveBtn").onclick = () => {
+  const text = document.getElementById("new-objective").value.trim();
+  if (!text) return;
+  objectives.push({ text: text, done: false });
+  renderObjectives("objectives-list", objectives, true, () => {}); // editable true
+  document.getElementById("new-objective").value = "";
+};
 
-  const edit_key = crypto.randomUUID();
+// Create challenge
+document.getElementById("createChallengeBtn").onclick = async () => {
+  const title = document.getElementById("title").value.trim();
+  const game = document.getElementById("game").value.trim();
+  const description = document.getElementById("description").value.trim();
 
-  const { data: userData } = await supabaseClient.auth.getUser();
-  if (!userData.user) {
-    alert("You must be logged in");
+  if (!title || !game || objectives.length === 0) {
+    document.getElementById("message").textContent = "Please fill all fields and add at least one objective.";
     return;
   }
 
-  const { data, error } = await supabaseClient
-    .from("challenges")
-    .insert({
-      title,
-      game,
-      description,
-      objectives,
-      edit_key,
-      creator_id: userData.user.id
-    })
-    .select()
-    .single();
+  const { data, error } = await supabaseClient.from("challenges").insert([{
+    title,
+    game,
+    description,
+    objectives,
+    creator: user.email,
+    created_at: new Date()
+  }]);
 
   if (error) {
-    document.getElementById("status").textContent = error.message;
-    return;
+    document.getElementById("message").textContent = "Error creating challenge: " + error.message;
+    console.error(error);
+  } else {
+    document.getElementById("message").textContent = "Challenge created!";
+    window.location.href = `view.html?id=${data[0].id}`;
   }
-
-  window.location.href = `view.html?id=${data.id}&edit=${edit_key}`;
-});
+};
 </script>
 
 </body>

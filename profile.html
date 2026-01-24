@@ -1,66 +1,12 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-<meta charset="UTF-8">
-<title>Creator Profile</title>
-<script src="https://unpkg.com/@supabase/supabase-js@2"></script>
-<style>
-body {
-  font-family: system-ui, sans-serif;
-  background: #0f172a;
-  color: #e5e7eb;
-  max-width: 900px;
-  margin: auto;
-  padding: 2rem;
-}
-
-nav {
-  display: flex;
-  gap: 1rem;
-  margin-bottom: 2rem;
-}
-
-nav a {
-  color: #38bdf8;
-  text-decoration: none;
-  font-weight: 600;
-}
-
-nav a:hover {
-  text-decoration: underline;
-}
-
-button {
-  background: #38bdf8;
-  border: none;
-  padding: 0.6rem 1rem;
-  border-radius: 6px;
-  font-weight: 600;
-  cursor: pointer;
-}
-
-button:hover {
-  background: #0ea5e9;
-}
-
-input, textarea {
-  width: 100%;
-  background: #020617;
-  color: white;
-  border: 1px solid #334155;
-  padding: 0.5rem;
-  border-radius: 6px;
-}
-
-ul {
-  padding-left: 1rem;
-}
-
-li {
-  margin-bottom: 0.5rem;
-}
-</style>
-
+  <meta charset="UTF-8" />
+  <title>Profile</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="stylesheet" href="style.css">
+  <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+  <script src="main.js"></script>
 </head>
 <body>
 
@@ -70,98 +16,47 @@ li {
   <a href="browse.html">Browse</a>
   <a href="my.html">My Challenges</a>
   <a href="feed.html">Feed</a>
-  <a href="auth.html" id="auth-link">Login</a>
+  <a href="#" id="auth-link">Login</a>
 </nav>
 
-<h1>Creator Profile</h1>
-<button id="followBtn">Follow</button>
-<p id="msg"></p>
+<h1>Profile</h1>
+<p id="message" style="color:#facc15;"></p>
 
-<ul id="list"></ul>
+<div id="profile-card" class="challenge-card" style="display:none;">
+  <h2>User Info</h2>
+  <p>Email: <span id="user-email"></span></p>
+  <p>User ID: <span id="user-id"></span></p>
+
+  <h3>Manage Account</h3>
+  <button id="logoutBtn">Logout</button>
+</div>
 
 <script>
-const SUPABASE_URL = "https://ffbqgczghzervntyhfvd.supabase.co";
-const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZmYnFnY3pnaHplcnZudHloZnZkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjgzNzU1MTAsImV4cCI6MjA4Mzk1MTUxMH0.N8eowQR-yhK9Hd6PrvxdHR30GYWc7U2xGdzJNw4u5U4";
+updateAuthLink();
 
-const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-
-const params = new URLSearchParams(window.location.search);
-const creatorId = params.get("id");
-
-const followBtn = document.getElementById("followBtn");
-const msg = document.getElementById("msg");
-
-let currentUserId = null;
-
-async function init() {
-  const { data: session } = await supabaseClient.auth.getSession();
-  const user = session?.session?.user;
+async function loadProfile() {
+  const user = await getCurrentUser();
+  const profileCard = document.getElementById("profile-card");
+  const message = document.getElementById("message");
 
   if (!user) {
-    followBtn.style.display = "none";
-    loadChallenges();
+    message.textContent = "Please log in to view your profile.";
+    profileCard.style.display = "none";
     return;
   }
 
-  currentUserId = user.id;
+  profileCard.style.display = "block";
+  document.getElementById("user-email").textContent = user.email;
+  document.getElementById("user-id").textContent = user.id;
 
-  const { data: existing } = await supabaseClient
-    .from("follows")
-    .select("id")
-    .eq("follower_id", currentUserId)
-    .eq("creator_id", creatorId)
-    .maybeSingle();
-
-  if (existing) {
-    followBtn.textContent = "Unfollow";
-  }
-
-  followBtn.onclick = toggleFollow;
-  loadChallenges();
+  document.getElementById("logoutBtn").onclick = async () => {
+    await supabaseClient.auth.signOut();
+    window.location.reload();
+  };
 }
 
-async function toggleFollow() {
-  if (!currentUserId) return;
-
-  if (followBtn.textContent === "Follow") {
-    const { error } = await supabaseClient.from("follows").insert({
-      follower_id: currentUserId,
-      creator_id: creatorId
-    });
-    if (!error) followBtn.textContent = "Unfollow";
-  } else {
-    await supabaseClient
-      .from("follows")
-      .delete()
-      .eq("follower_id", currentUserId)
-      .eq("creator_id", creatorId);
-
-    followBtn.textContent = "Follow";
-  }
-}
-
-async function loadChallenges() {
-  const { data } = await supabaseClient
-    .from("challenges")
-    .select("id,title,game")
-    .eq("creator_id", creatorId);
-
-  const list = document.getElementById("list");
-  list.innerHTML = "";
-
-  data.forEach(c => {
-    const li = document.createElement("li");
-    const a = document.createElement("a");
-    a.href = `view.html?id=${c.id}`;
-    a.textContent = `${c.title} (${c.game})`;
-    li.appendChild(a);
-    list.appendChild(li);
-  });
-}
-
-init();
+loadProfile();
 </script>
-
 
 </body>
 </html>

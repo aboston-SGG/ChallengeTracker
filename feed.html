@@ -1,66 +1,12 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-<meta charset="UTF-8">
-<title>Your Feed</title>
-<script src="https://unpkg.com/@supabase/supabase-js@2"></script>
-<style>
-body {
-  font-family: system-ui, sans-serif;
-  background: #0f172a;
-  color: #e5e7eb;
-  max-width: 900px;
-  margin: auto;
-  padding: 2rem;
-}
-
-nav {
-  display: flex;
-  gap: 1rem;
-  margin-bottom: 2rem;
-}
-
-nav a {
-  color: #38bdf8;
-  text-decoration: none;
-  font-weight: 600;
-}
-
-nav a:hover {
-  text-decoration: underline;
-}
-
-button {
-  background: #38bdf8;
-  border: none;
-  padding: 0.6rem 1rem;
-  border-radius: 6px;
-  font-weight: 600;
-  cursor: pointer;
-}
-
-button:hover {
-  background: #0ea5e9;
-}
-
-input, textarea {
-  width: 100%;
-  background: #020617;
-  color: white;
-  border: 1px solid #334155;
-  padding: 0.5rem;
-  border-radius: 6px;
-}
-
-ul {
-  padding-left: 1rem;
-}
-
-li {
-  margin-bottom: 0.5rem;
-}
-</style>
-
+  <meta charset="UTF-8" />
+  <title>Challenge Feed</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="stylesheet" href="style.css">
+  <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+  <script src="main.js"></script>
 </head>
 <body>
 
@@ -70,56 +16,65 @@ li {
   <a href="browse.html">Browse</a>
   <a href="my.html">My Challenges</a>
   <a href="feed.html">Feed</a>
-  <a href="auth.html" id="auth-link">Login</a>
+  <a href="#" id="auth-link">Login</a>
 </nav>
 
-<h1>Your Feed</h1>
-<ul id="feed"></ul>
-<p id="msg"></p>
+<h1>Challenge Feed</h1>
+
+<div id="feed-list">
+  <!-- Challenge cards injected here -->
+</div>
 
 <script>
-const SUPABASE_URL = "https://ffbqgczghzervntyhfvd.supabase.co";
-const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZmYnFnY3pnaHplcnZudHloZnZkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjgzNzU1MTAsImV4cCI6MjA4Mzk1MTUxMH0.N8eowQR-yhK9Hd6PrvxdHR30GYWc7U2xGdzJNw4u5U4";
-
-const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+updateAuthLink();
 
 async function loadFeed() {
-  const { data: session } = await supabaseClient.auth.getSession();
-  const user = session?.session?.user;
-
-  if (!user) {
-    document.getElementById("msg").textContent = "Please log in to see your feed.";
-    return;
-  }
-
-  const { data: follows } = await supabaseClient
-    .from("follows")
-    .select("creator_id")
-    .eq("follower_id", user.id);
-
-  if (!follows.length) {
-    document.getElementById("msg").textContent = "Follow creators to populate your feed.";
-    return;
-  }
-
-  const creatorIds = follows.map(f => f.creator_id);
-
-  const { data: challenges } = await supabaseClient
+  // Load most recent 20 challenges for feed
+  const { data, error } = await supabaseClient
     .from("challenges")
-    .select("id,title,game,created_at")
-    .in("creator_id", creatorIds)
-    .order("created_at", { ascending: false });
+    .select("*")
+    .order("created_at", { ascending: false })
+    .limit(20);
 
-  const feed = document.getElementById("feed");
+  const feed = document.getElementById("feed-list");
+  if (error || !data) {
+    feed.innerHTML = "<p>No challenges found.</p>";
+    console.error(error);
+    return;
+  }
+
   feed.innerHTML = "";
 
-  challenges.forEach(c => {
-    const li = document.createElement("li");
-    const a = document.createElement("a");
-    a.href = `view.html?id=${c.id}`;
-    a.textContent = `${c.title} (${c.game})`;
-    li.appendChild(a);
-    feed.appendChild(li);
+  data.forEach(challenge => {
+    const card = document.createElement("div");
+    card.className = "challenge-card";
+
+    card.innerHTML = `
+      <h2>${challenge.title}</h2>
+      <p class="meta">Game: ${challenge.game} | By: ${challenge.creator || "Anonymous"}</p>
+      <p>${challenge.description}</p>
+      <div class="progress-container"><div id="progress-bar-${challenge.id}" class="progress-bar"></div></div>
+      <p id="progress-text-${challenge.id}"></p>
+      <div class="like-section">
+        <button id="likeBtn-${challenge.id}">❤️ Like</button>
+        <span id="likeCount-${challenge.id}"></span>
+      </div>
+      <a href="view.html?id=${challenge.id}">View Challenge →</a>
+    `;
+
+    feed.appendChild(card);
+
+    // Render progress
+    const progressText = updateProgressBar(
+      `progress-bar-${challenge.id}`,
+      challenge.objectives || []
+    );
+    document.getElementById(`progress-text-${challenge.id}`).textContent = "Progress: " + progressText;
+
+    // Setup likes
+    const likeBtn = document.getElementById(`likeBtn-${challenge.id}`);
+    likeBtn.onclick = () => toggleLike(challenge.id, `likeBtn-${challenge.id}`, `likeCount-${challenge.id}`);
+    updateLikeCount(challenge.id, `likeCount-${challenge.id}`);
   });
 }
 

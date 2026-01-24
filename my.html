@@ -4,65 +4,9 @@
   <meta charset="UTF-8" />
   <title>My Challenges</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="stylesheet" href="style.css">
   <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
-
-  <style>
-body {
-  font-family: system-ui, sans-serif;
-  background: #0f172a;
-  color: #e5e7eb;
-  max-width: 900px;
-  margin: auto;
-  padding: 2rem;
-}
-
-nav {
-  display: flex;
-  gap: 1rem;
-  margin-bottom: 2rem;
-}
-
-nav a {
-  color: #38bdf8;
-  text-decoration: none;
-  font-weight: 600;
-}
-
-nav a:hover {
-  text-decoration: underline;
-}
-
-button {
-  background: #38bdf8;
-  border: none;
-  padding: 0.6rem 1rem;
-  border-radius: 6px;
-  font-weight: 600;
-  cursor: pointer;
-}
-
-button:hover {
-  background: #0ea5e9;
-}
-
-input, textarea {
-  width: 100%;
-  background: #020617;
-  color: white;
-  border: 1px solid #334155;
-  padding: 0.5rem;
-  border-radius: 6px;
-}
-
-ul {
-  padding-left: 1rem;
-}
-
-li {
-  margin-bottom: 0.5rem;
-}
-</style>
-
+  <script src="main.js"></script>
 </head>
 <body>
 
@@ -72,93 +16,74 @@ li {
   <a href="browse.html">Browse</a>
   <a href="my.html">My Challenges</a>
   <a href="feed.html">Feed</a>
-  <a href="auth.html" id="auth-link">Login</a>
+  <a href="#" id="auth-link">Login</a>
 </nav>
 
 <h1>My Challenges</h1>
-<ul id="list"></ul>
+<p id="message" style="color:#facc15;"></p>
+
+<div id="my-challenge-list">
+  <!-- User's challenges will be injected here -->
+</div>
 
 <script>
-const SUPABASE_URL = "https://ffbqgczghzervntyhfvd.supabase.co";
-    const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZmYnFnY3pnaHplcnZudHloZnZkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjgzNzU1MTAsImV4cCI6MjA4Mzk1MTUxMH0.N8eowQR-yhK9Hd6PrvxdHR30GYWc7U2xGdzJNw4u5U4";
-
-const supabaseClient = supabase.createClient(
-  SUPABASE_URL,
-  SUPABASE_ANON_KEY
-);
-
-let currentUser = null;
-
-async function getUser() {
-  const { data } = await supabaseClient.auth.getUser();
-  currentUser = data.user;
-
-  if (!currentUser) {
-    document.body.innerHTML = "<p>Please log in to view your challenges.</p>";
-    return false;
-  }
-  return true;
-}
-
-async function setupNav() {
-  const link = document.getElementById("auth-link");
-  if (currentUser) {
-    link.textContent = "Logout";
-    link.onclick = async (e) => {
-      e.preventDefault();
-      await supabaseClient.auth.signOut();
-      location.reload();
-    };
-  }
-}
-
-function progressPercent(objs) {
-  const done = objs.filter(o => o.done).length;
-  return Math.round((done / objs.length) * 100);
-}
+updateAuthLink();
 
 async function loadMyChallenges() {
-  const { data, error } = await supabaseClient
-    .from("user_challenges")
-    .select(`
-      id,
-      objectives,
-      challenges ( title, game, id )
-    `)
-    .eq("user_id", currentUser.id);
-
-  if (error) {
-    console.error(error.message);
+  const user = await getCurrentUser();
+  if (!user) {
+    document.getElementById("message").textContent = "Please log in to see your challenges.";
     return;
   }
 
-  const list = document.getElementById("list");
-  list.innerHTML = "";
+  const { data, error } = await supabaseClient
+    .from("user_challenges")
+    .select("*, challenges(*)") // join challenge details
+    .eq("user_id", user.id)
+    .order("created_at", { ascending: false });
 
-  data.forEach(row => {
-    const li = document.createElement("li");
+  const container = document.getElementById("my-challenge-list");
+  if (error || !data) {
+    container.innerHTML = "<p>No challenges found.</p>";
+    console.error(error);
+    return;
+  }
 
-    const a = document.createElement("a");
-    a.href = `view.html?id=${row.challenges.id}`;
-    a.textContent = `${row.challenges.title} (${row.challenges.game})`;
+  container.innerHTML = "";
 
-    const p = document.createElement("div");
-    p.className = "progress";
-    p.textContent = `Progress: ${progressPercent(row.objectives)}%`;
+  data.forEach(entry => {
+    const challenge = entry.challenges;
 
-    li.appendChild(a);
-    li.appendChild(p);
-    list.appendChild(li);
+    const card = document.createElement("div");
+    card.className = "challenge-card";
+
+    card.innerHTML = `
+      <h2>${challenge.title}</h2>
+      <p class="meta">Game: ${challenge.game} | By: ${challenge.creator || "Anonymous"}</p>
+      <p>${challenge.description}</p>
+      <div class="progress-container"><div id="progress-bar-${challenge.id}" class="progress-bar"></div></div>
+      <p id="progress-text-${challenge.id}"></p>
+      <div class="like-section">
+        <button id="likeBtn-${challenge.id}">❤️ Like</button>
+        <span id="likeCount-${challenge.id}"></span>
+      </div>
+      <a href="view.html?id=${challenge.id}&edit=${entry.edit_key}">View / Edit →</a>
+    `;
+
+    container.appendChild(card);
+
+    // Render progress
+    const progressText = updateProgressBar(`progress-bar-${challenge.id}`, challenge.objectives || []);
+    document.getElementById(`progress-text-${challenge.id}`).textContent = "Progress: " + progressText;
+
+    // Likes
+    const likeBtn = document.getElementById(`likeBtn-${challenge.id}`);
+    likeBtn.onclick = () => toggleLike(challenge.id, `likeBtn-${challenge.id}`, `likeCount-${challenge.id}`);
+    updateLikeCount(challenge.id, `likeCount-${challenge.id}`);
   });
 }
 
-async function init() {
-  if (!(await getUser())) return;
-  await setupNav();
-  await loadMyChallenges();
-}
-
-init();
+loadMyChallenges();
 </script>
 
 </body>
