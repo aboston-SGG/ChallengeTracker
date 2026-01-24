@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Your Feed</title>
+<script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+</head>
+<body>
+
+<nav>
+  <a href="index.html">Home</a>
+  <a href="create.html">Create</a>
+  <a href="browse.html">Browse</a>
+  <a href="my.html">My Challenges</a>
+  <a href="feed.html">Feed</a>
+  <a href="auth.html" id="auth-link">Login</a>
+</nav>
+
+<h1>Your Feed</h1>
+<ul id="feed"></ul>
+<p id="msg"></p>
+
+<script>
+const SUPABASE_URL = "https://ffbqgczghzervntyhfvd.supabase.co";
+const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZmYnFnY3pnaHplcnZudHloZnZkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjgzNzU1MTAsImV4cCI6MjA4Mzk1MTUxMH0.N8eowQR-yhK9Hd6PrvxdHR30GYWc7U2xGdzJNw4u5U4";
+
+const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+async function loadFeed() {
+  const { data: session } = await supabaseClient.auth.getSession();
+  const user = session?.session?.user;
+
+  if (!user) {
+    document.getElementById("msg").textContent = "Please log in to see your feed.";
+    return;
+  }
+
+  const { data: follows } = await supabaseClient
+    .from("follows")
+    .select("creator_id")
+    .eq("follower_id", user.id);
+
+  if (!follows.length) {
+    document.getElementById("msg").textContent = "Follow creators to populate your feed.";
+    return;
+  }
+
+  const creatorIds = follows.map(f => f.creator_id);
+
+  const { data: challenges } = await supabaseClient
+    .from("challenges")
+    .select("id,title,game,created_at")
+    .in("creator_id", creatorIds)
+    .order("created_at", { ascending: false });
+
+  const feed = document.getElementById("feed");
+  feed.innerHTML = "";
+
+  challenges.forEach(c => {
+    const li = document.createElement("li");
+    const a = document.createElement("a");
+    a.href = `view.html?id=${c.id}`;
+    a.textContent = `${c.title} (${c.game})`;
+    li.appendChild(a);
+    feed.appendChild(li);
+  });
+}
+
+loadFeed();
+</script>
+
+</body>
+</html>
