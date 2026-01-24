@@ -1,8 +1,8 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <title>Login / Signup</title>
+  <meta charset="UTF-8">
+  <title>Login / Sign Up</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <link rel="stylesheet" href="style.css">
   <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
@@ -20,36 +20,62 @@
 </nav>
 
 <div class="challenge-card">
-  <h1>Login / Signup</h1>
+  <h1>Login or Sign Up</h1>
+  <p>Enter your email to receive a magic link:</p>
 
-  <p>Enter your email to log in or create an account:</p>
   <input type="email" id="email" placeholder="you@example.com" />
   <button id="loginBtn">Send Magic Link</button>
 
-  <p id="message" style="margin-top:1rem; color:#facc15;"></p>
+  <p id="message" style="color:#facc15; margin-top:1rem;"></p>
 </div>
 
 <script>
+const SUPABASE_URL = "https://ffbqgczghzervntyhfvd.supabase.co";
+const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZmYnFnY3pnaHplcnZudHloZnZkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjgzNzU1MTAsImV4cCI6MjA4Mzk1MTUxMH0.N8eowQR-yhK9Hd6PrvxdHR30GYWc7U2xGdzJNw4u5U4"; // replace with anon key
+const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
 updateAuthLink();
 
-const emailInput = document.getElementById("email");
-const loginBtn = document.getElementById("loginBtn");
-const message = document.getElementById("message");
-
-loginBtn.onclick = async () => {
-  const email = emailInput.value.trim();
-  if (!email) {
-    message.textContent = "Please enter a valid email.";
+// Handle magic link login
+async function handleMagicLink() {
+  const { data, error } = await supabaseClient.auth.getSessionFromUrl();
+  if (error) {
+    console.error("Magic link error:", error.message);
+    document.getElementById("message").textContent = "Magic link failed. Try again.";
     return;
   }
 
-  const { data, error } = await supabaseClient.auth.signInWithOtp({ email });
+  if (data.session) {
+    // Successful login
+    document.getElementById("message").textContent = "Logged in successfully! Redirecting…";
+    window.location.href = "index.html"; // or my.html
+  }
+}
+
+// Check if user is coming from a magic link
+handleMagicLink();
+
+// Send magic link on button click
+document.getElementById("loginBtn").onclick = async () => {
+  const email = document.getElementById("email").value.trim();
+  if (!email) {
+    document.getElementById("message").textContent = "Please enter your email.";
+    return;
+  }
+
+  const { error } = await supabaseClient.auth.signInWithOtp({
+    email,
+    options: {
+      // Redirect back to this page after clicking the link
+      emailRedirectTo: window.location.origin + "/auth.html"
+    }
+  });
 
   if (error) {
-    message.textContent = "Error: " + error.message;
     console.error(error);
+    document.getElementById("message").textContent = "Error sending magic link: " + error.message;
   } else {
-    message.textContent = "Magic link sent! Check your email to log in.";
+    document.getElementById("message").textContent = "Magic link sent! Check your email.";
   }
 };
 </script>
