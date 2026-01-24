@@ -1,40 +1,23 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <title>My Challenges</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <link rel="stylesheet" href="style.css">
-  <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
-  <script src="main.js"></script>
-  <style>
-    .objective {
-      display: flex;
-      align-items: center;
-      margin-bottom: 0.5rem;
-    }
-    .objective input[type="checkbox"] {
-      margin-right: 0.5rem;
-    }
-    .challenge-card {
-      margin-bottom: 2rem;
-      padding: 1rem;
-      border: 1px solid #ddd;
-      border-radius: 8px;
-    }
-    .progress-bar {
-      height: 1rem;
-      border-radius: 0.25rem;
-      background-color: #eee;
-      margin-top: 0.5rem;
-      overflow: hidden;
-    }
-    .progress-fill {
-      height: 100%;
-      background-color: #facc15;
-      width: 0%;
-    }
-  </style>
+<meta charset="UTF-8">
+<title>My Challenges</title>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<link rel="stylesheet" href="style.css">
+<script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+<script src="main.js"></script>
+<style>
+.challenge-card { background:#fff; padding:1rem; border-radius:10px; box-shadow:0 2px 6px rgba(0,0,0,0.1); margin-bottom:2rem; }
+.challenge-card:hover { box-shadow:0 4px 12px rgba(0,0,0,0.15); }
+.objective { margin-bottom:1rem; padding:0.75rem; border:1px solid #ddd; border-radius:6px; }
+.subobjective { margin-left:1.5rem; border-left:2px solid #eee; padding-left:0.5rem; display:flex; align-items:center; }
+.objective-title { font-weight:bold; margin-left:0.5rem; }
+.progress-container { display:flex; align-items:center; gap:0.5rem; margin-top:0.5rem; }
+.progress-bar { flex:1; height:1rem; border-radius:0.25rem; background:#eee; overflow:hidden; }
+.progress-fill { height:100%; background:#facc15; width:0%; transition:width 0.3s ease; }
+.toggle-sub { font-size:0.8rem; margin-left:0.5rem; cursor:pointer; background:#f3f4f6; padding:0.2rem 0.5rem; border-radius:4px; }
+</style>
 </head>
 <body>
 
@@ -47,7 +30,6 @@
   <a href="#" id="auth-link">Login</a>
 </nav>
 
-<h1>My Challenges</h1>
 <div id="my-challenges"></div>
 
 <script>
@@ -55,10 +37,7 @@ updateAuthLink();
 
 async function loadMyChallenges() {
   const user = await getCurrentUser();
-  if (!user) {
-    document.getElementById("my-challenges").textContent = "Please log in to see your challenges.";
-    return;
-  }
+  if(!user){ document.getElementById("my-challenges").innerHTML="<p>Please log in to view your challenges.</p>"; return; }
 
   const { data: userChallenges, error } = await supabaseClient
     .from("user_challenges")
@@ -66,71 +45,106 @@ async function loadMyChallenges() {
     .eq("user_id", user.id)
     .order("created_at", { ascending: false });
 
-  if (error) {
-    console.error(error);
-    document.getElementById("my-challenges").textContent = "Error loading challenges.";
-    return;
-  }
+  if(error){ console.error(error); return; }
 
   const container = document.getElementById("my-challenges");
   container.innerHTML = "";
 
-  userChallenges.forEach(uc => {
+  userChallenges.forEach(uc=>{
     const ch = uc.challenges;
     const div = document.createElement("div");
     div.className = "challenge-card";
-
-    const objectives = ch.objectives || [];
-    const progressPercent = updateProgressBarForDiv(div, objectives);
-
-    // Build objectives list
-    const objectivesList = objectives.map((obj, idx) => `
-      <div class="objective">
-        <input type="checkbox" data-index="${idx}" ${obj.done ? "checked" : ""}>
-        <span>${obj.text}</span>
-      </div>
-    `).join("");
 
     div.innerHTML = `
       <h2>${ch.title}</h2>
       <p class="meta">Game: ${ch.game}</p>
       <p>${ch.description}</p>
-      <div class="progress-bar"><div class="progress-fill" style="width:${progressPercent}%;"></div></div>
-      <div class="objectives">${objectivesList}</div>
+      <div class="progress-container">
+        <div class="progress-bar"><div class="progress-fill"></div></div>
+        <span class="progress-text">0%</span>
+      </div>
+      <div class="objectives-container"></div>
     `;
 
-    // Make checkboxes editable
-    const checkboxes = div.querySelectorAll("input[type='checkbox']");
-    checkboxes.forEach(cb => {
-      cb.addEventListener("change", async (e) => {
-        const idx = parseInt(cb.dataset.index);
-        objectives[idx].done = cb.checked;
+    container.appendChild(div);
 
-        // Update progress bar
-        const newPercent = updateProgressBarForDiv(div, objectives);
+    const objectivesContainer = div.querySelector(".objectives-container");
+    const objectives = ch.objectives || [];
 
-        // Save progress to Supabase
-        const { error } = await supabaseClient
-          .from("user_challenges")
-          .update({ objectives })
-          .eq("id", uc.id);
+    objectives.forEach((obj, idx)=>{
+      const objDiv = document.createElement("div");
+      objDiv.className="objective";
 
-        if (error) console.error("Error saving progress:", error.message);
+      const objCheckbox = document.createElement("input");
+      objCheckbox.type="checkbox";
+      objCheckbox.checked = obj.done || false;
+
+      objCheckbox.addEventListener("change", async ()=>{
+        obj.done = objCheckbox.checked;
+        updateProgressBar(div, objectives);
+        await supabaseClient.from("user_challenges").update({objectives}).eq("id",uc.id);
       });
+
+      const objTitle = document.createElement("span");
+      objTitle.className="objective-title";
+      objTitle.textContent = obj.title + ": " + obj.description;
+
+      objDiv.appendChild(objCheckbox);
+      objDiv.appendChild(objTitle);
+
+      // Sub-objectives
+      if(obj.subObjectives && obj.subObjectives.length){
+        const toggle = document.createElement("button");
+        toggle.className="toggle-sub";
+        toggle.textContent="Toggle Sub-Objectives";
+        let subVisible = true;
+        toggle.addEventListener("click", ()=>{ 
+          subVisible = !subVisible; 
+          subContainer.style.display = subVisible?"block":"none"; 
+        });
+        objDiv.appendChild(toggle);
+
+        const subContainer = document.createElement("div");
+        obj.subObjectives.forEach((sub,sidx)=>{
+          const subDiv = document.createElement("div");
+          subDiv.className="subobjective";
+
+          const subCheckbox = document.createElement("input");
+          subCheckbox.type="checkbox";
+          subCheckbox.checked = sub.done || false;
+
+          subCheckbox.addEventListener("change", async ()=>{
+            sub.done = subCheckbox.checked;
+            updateProgressBar(div, objectives);
+            await supabaseClient.from("user_challenges").update({objectives}).eq("id",uc.id);
+          });
+
+          const subTitle = document.createElement("span");
+          subTitle.textContent = sub.title + ": " + sub.description;
+
+          subDiv.appendChild(subCheckbox);
+          subDiv.appendChild(subTitle);
+          subContainer.appendChild(subDiv);
+        });
+        objDiv.appendChild(subContainer);
+      }
+
+      objectivesContainer.appendChild(objDiv);
     });
 
-    container.appendChild(div);
+    updateProgressBar(div, objectives);
   });
 }
 
-// Helper: Update progress bar in a challenge card div
-function updateProgressBarForDiv(div, objectives) {
-  const total = objectives.length;
-  const done = objectives.filter(o => o.done).length;
-  const percent = total ? Math.round((done / total) * 100) : 0;
-  const fill = div.querySelector(".progress-fill");
-  if (fill) fill.style.width = percent + "%";
-  return percent;
+function updateProgressBar(div, objectives){
+  let total=0, done=0;
+  objectives.forEach(obj=>{
+    total++; if(obj.done) done++;
+    (obj.subObjectives||[]).forEach(sub=>{total++; if(sub.done) done++;});
+  });
+  const percent = total?Math.round(done/total*100):0;
+  div.querySelector(".progress-fill").style.width = percent+"%";
+  div.querySelector(".progress-text").textContent = percent+"%";
 }
 
 loadMyChallenges();

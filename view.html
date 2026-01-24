@@ -1,12 +1,21 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <title>View Challenge</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <link rel="stylesheet" href="style.css">
-  <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
-  <script src="main.js"></script>
+<meta charset="UTF-8">
+<title>View Challenge</title>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<link rel="stylesheet" href="style.css">
+<script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+<script src="main.js"></script>
+<style>
+.objective { margin-bottom:1rem; padding:0.75rem; border:1px solid #ddd; border-radius:6px; background:#fff; }
+.subobjective { margin-left:1.5rem; border-left:2px solid #eee; padding-left:0.5rem; display:flex; align-items:center; }
+.objective-title { font-weight:bold; margin-left:0.5rem; }
+.progress-container { display:flex; align-items:center; gap:0.5rem; margin-top:0.5rem; }
+.progress-bar { flex:1; height:1rem; border-radius:0.25rem; background:#eee; overflow:hidden; }
+.progress-fill { height:100%; background:#facc15; width:0%; transition:width 0.3s ease; }
+.toggle-sub { font-size:0.8rem; margin-left:0.5rem; cursor:pointer; background:#f3f4f6; padding:0.2rem 0.5rem; border-radius:4px; }
+</style>
 </head>
 <body>
 
@@ -19,111 +28,125 @@
   <a href="#" id="auth-link">Login</a>
 </nav>
 
-<div class="challenge-card" id="challenge-container">
+<div class="challenge-card">
   <h1 id="title"></h1>
-  <p class="meta" id="game"></p>
+  <div class="meta" id="game"></div>
   <p id="description"></p>
-  <p id="progress"></p>
-
-  <h2>Objectives</h2>
-  <ul id="objectives"></ul>
-
-  <div class="like-section">
-    <button id="likeBtn">❤️ Like</button>
-    <span id="likeCount"></span>
+  <div class="progress-container">
+    <div class="progress-bar"><div class="progress-fill" id="progress-fill"></div></div>
+    <span id="progress-text">0%</span>
   </div>
+  <div id="objectives"></div>
 </div>
 
 <script>
 updateAuthLink();
-
 const params = new URLSearchParams(window.location.search);
 const challengeId = params.get("id");
-const editKey = params.get("edit"); // optional edit key for personal copy
-
-let challengeData;
-let isEditable = false;
+const editKey = params.get("edit");
+let challengeData = null;
 
 async function loadChallenge() {
-  if (!challengeId) {
-    document.body.innerHTML = "<p>No challenge ID provided.</p>";
-    return;
-  }
-
-  // Load challenge
-  const { data, error } = await supabaseClient
-    .from("challenges")
-    .select("*")
-    .eq("id", challengeId)
-    .single();
-
-  if (error || !data) {
-    document.body.innerHTML = "<p>Challenge not found.</p>";
-    console.error(error);
-    return;
-  }
-
+  if(!challengeId) return;
+  const {data,error} = await supabaseClient.from("challenges").select("*").eq("id",challengeId).single();
+  if(error || !data){ document.body.innerHTML="<p>Challenge not found.</p>"; return; }
   challengeData = data;
-
-  // Determine if editable
-  isEditable = editKey && data.edit_key && editKey === data.edit_key;
-
   renderChallenge();
 }
 
 function renderChallenge() {
+  const isEditable = editKey && challengeData.edit_key && editKey===challengeData.edit_key;
+
   document.getElementById("title").textContent = challengeData.title;
-  document.getElementById("game").textContent = "Game: " + challengeData.game;
+  document.getElementById("game").textContent = "Game: "+challengeData.game;
   document.getElementById("description").textContent = challengeData.description;
 
-  const list = document.getElementById("objectives");
-  list.innerHTML = "";
+  const objectivesDiv = document.getElementById("objectives");
+  objectivesDiv.innerHTML = "";
 
-  challengeData.objectives.forEach((obj, index) => {
-    const li = document.createElement("li");
+  const objectives = challengeData.objectives || [];
 
-    const checkbox = document.createElement("input");
-    checkbox.type = "checkbox";
-    checkbox.checked = obj.done;
-    checkbox.disabled = !isEditable;
-    checkbox.style.marginRight = "0.5rem";
+  objectives.forEach((obj, idx) => {
+    const objDiv = document.createElement("div");
+    objDiv.className = "objective";
 
-    checkbox.addEventListener("change", async () => {
-      if (!isEditable) return;
-      challengeData.objectives[index].done = checkbox.checked;
-      updateProgress();
-      await saveProgress();
+    const objCheckbox = document.createElement("input");
+    objCheckbox.type = "checkbox";
+    objCheckbox.checked = obj.done || false;
+    objCheckbox.disabled = !isEditable;
+
+    objCheckbox.addEventListener("change", async ()=>{
+      obj.done = objCheckbox.checked;
+      renderProgress();
+      if(isEditable) await saveProgress();
     });
 
-    li.appendChild(checkbox);
-    li.appendChild(document.createTextNode(obj.text));
-    list.appendChild(li);
+    const objTitle = document.createElement("span");
+    objTitle.className="objective-title";
+    objTitle.textContent = obj.title + ": " + obj.description;
+
+    objDiv.appendChild(objCheckbox);
+    objDiv.appendChild(objTitle);
+
+    // Sub-objectives container
+    if(obj.subObjectives && obj.subObjectives.length){
+      const toggle = document.createElement("button");
+      toggle.className="toggle-sub";
+      toggle.textContent="Toggle Sub-Objectives";
+      let subVisible = true;
+      toggle.addEventListener("click", ()=>{ 
+        subVisible = !subVisible; 
+        subContainer.style.display = subVisible?"block":"none"; 
+      });
+      objDiv.appendChild(toggle);
+
+      const subContainer = document.createElement("div");
+      obj.subObjectives.forEach((sub,sidx)=>{
+        const subDiv = document.createElement("div");
+        subDiv.className="subobjective";
+
+        const subCheckbox = document.createElement("input");
+        subCheckbox.type="checkbox";
+        subCheckbox.checked = sub.done || false;
+        subCheckbox.disabled = !isEditable;
+
+        subCheckbox.addEventListener("change", async ()=>{
+          sub.done = subCheckbox.checked;
+          renderProgress();
+          if(isEditable) await saveProgress();
+        });
+
+        const subTitle = document.createElement("span");
+        subTitle.textContent = sub.title + ": " + sub.description;
+
+        subDiv.appendChild(subCheckbox);
+        subDiv.appendChild(subTitle);
+        subContainer.appendChild(subDiv);
+      });
+      objDiv.appendChild(subContainer);
+    }
+
+    objectivesDiv.appendChild(objDiv);
   });
 
-  updateProgress();
-
-  // Like button
-  const likeBtn = document.getElementById("likeBtn");
-  likeBtn.onclick = () => toggleLike(challengeId, "likeBtn", "likeCount");
-  updateLikeCount(challengeId, "likeCount");
+  renderProgress();
 }
 
-function updateProgress() {
-  const completed = challengeData.objectives.filter(o => o.done).length;
-  const total = challengeData.objectives.length;
-  document.getElementById("progress").textContent =
-    `Progress: ${completed} / ${total} (${Math.round((completed / total) * 100)}%)`;
+function renderProgress() {
+  let total=0, done=0;
+  const objectives = challengeData.objectives || [];
+  objectives.forEach(obj=>{
+    total++; if(obj.done) done++;
+    (obj.subObjectives||[]).forEach(sub=>{ total++; if(sub.done) done++; });
+  });
+  const percent = total?Math.round(done/total*100):0;
+  document.getElementById("progress-fill").style.width = percent+"%";
+  document.getElementById("progress-text").textContent = percent+"%";
 }
 
-async function saveProgress() {
-  if (!isEditable) return;
-
-  const { error } = await supabaseClient
-    .from("challenges")
-    .update({ objectives: challengeData.objectives })
-    .eq("id", challengeId);
-
-  if (error) console.error("Error saving progress:", error.message);
+async function saveProgress(){
+  const {error} = await supabaseClient.from("challenges").update({objectives:challengeData.objectives}).eq("id",challengeData.id);
+  if(error) console.error("Error saving progress:",error.message);
 }
 
 loadChallenge();

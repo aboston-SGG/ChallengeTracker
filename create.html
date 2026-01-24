@@ -1,12 +1,12 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <title>Create Challenge</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <link rel="stylesheet" href="style.css">
-  <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
-  <script src="main.js"></script>
+<meta charset="UTF-8">
+<title>Create Challenge</title>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<link rel="stylesheet" href="style.css">
+<script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+<script src="main.js"></script>
 </head>
 <body>
 
@@ -20,75 +20,129 @@
 </nav>
 
 <div class="challenge-card">
-  <h1>Create a New Challenge</h1>
+  <h1>Create Challenge</h1>
+  <label>Title:</label>
+  <input type="text" id="challenge-title" placeholder="Challenge Title" /><br>
 
-  <label>Title</label>
-  <input type="text" id="title" placeholder="Challenge title" />
+  <label>Game:</label>
+  <input type="text" id="challenge-game" placeholder="Game Name" /><br>
 
-  <label>Game</label>
-  <input type="text" id="game" placeholder="Game name" />
-
-  <label>Description</label>
-  <textarea id="description" placeholder="Describe your challenge"></textarea>
+  <label>Description:</label>
+  <textarea id="challenge-desc" placeholder="Challenge Description"></textarea><br>
 
   <h2>Objectives</h2>
-  <ul id="objectives-list"></ul>
-  <input type="text" id="new-objective" placeholder="New objective" />
-  <button id="addObjectiveBtn">Add Objective</button>
+  <div id="objectives-container"></div>
+  <button id="add-objective">Add Objective</button><br><br>
 
-  <button id="createChallengeBtn">Create Challenge</button>
-  <p id="message" style="margin-top:1rem; color:#facc15;"></p>
+  <button id="save-challenge">Save Challenge</button>
+  <p id="message" style="color:#facc15;"></p>
 </div>
 
 <script>
 updateAuthLink();
-
 let objectives = [];
 
-const user = await getCurrentUser();
-if (!user) {
-  document.getElementById("message").textContent = "Please log in to create a challenge.";
-  document.getElementById("createChallengeBtn").disabled = true;
+function renderObjectives() {
+  const container = document.getElementById("objectives-container");
+  container.innerHTML = "";
+
+  objectives.forEach((obj, idx) => {
+    const div = document.createElement("div");
+    div.className = "objective";
+
+    const subToggle = obj.subObjectives?.length ? '<button class="toggle-sub" data-idx="'+idx+'">Toggle Sub-Objectives</button>' : '';
+
+    div.innerHTML = `
+      <input type="text" placeholder="Objective Title" value="${obj.title || ''}" data-idx="${idx}" class="obj-title"><br>
+      <textarea placeholder="Objective Description" data-idx="${idx}" class="obj-desc">${obj.description || ''}</textarea><br>
+      <button data-idx="${idx}" class="add-sub">Add Sub-Objective</button>
+      <button data-idx="${idx}" class="remove-obj">Remove Objective</button>
+      ${subToggle}
+      <div class="sub-container"></div>
+    `;
+
+    const subContainer = div.querySelector(".sub-container");
+    (obj.subObjectives || []).forEach((sub, sidx) => {
+      const subDiv = document.createElement("div");
+      subDiv.className = "subobjective";
+      subDiv.innerHTML = `
+        <input type="text" placeholder="Sub-Objective Title" value="${sub.title || ''}" data-idx="${idx}" data-sidx="${sidx}" class="sub-title"><br>
+        <textarea placeholder="Sub-Objective Description" data-idx="${idx}" data-sidx="${sidx}" class="sub-desc">${sub.description || ''}</textarea><br>
+        <button data-idx="${idx}" data-sidx="${sidx}" class="remove-sub">Remove Sub-Objective</button>
+      `;
+      subContainer.appendChild(subDiv);
+    });
+
+    container.appendChild(div);
+  });
+
+  // Event listeners
+  document.querySelectorAll(".obj-title").forEach(input => {
+    input.addEventListener("input", e => objectives[e.target.dataset.idx].title = e.target.value);
+  });
+  document.querySelectorAll(".obj-desc").forEach(input => {
+    input.addEventListener("input", e => objectives[e.target.dataset.idx].description = e.target.value);
+  });
+  document.querySelectorAll(".add-sub").forEach(btn => {
+    btn.addEventListener("click", e => {
+      const i = e.target.dataset.idx;
+      if (!objectives[i].subObjectives) objectives[i].subObjectives = [];
+      objectives[i].subObjectives.push({ title:"", description:"", done:false });
+      renderObjectives();
+    });
+  });
+  document.querySelectorAll(".remove-obj").forEach(btn => {
+    btn.addEventListener("click", e => {
+      objectives.splice(e.target.dataset.idx,1);
+      renderObjectives();
+    });
+  });
+  document.querySelectorAll(".sub-title").forEach(input => {
+    input.addEventListener("input", e => objectives[e.target.dataset.idx].subObjectives[e.target.dataset.sidx].title = e.target.value);
+  });
+  document.querySelectorAll(".sub-desc").forEach(input => {
+    input.addEventListener("input", e => objectives[e.target.dataset.idx].subObjectives[e.target.dataset.sidx].description = e.target.value);
+  });
+  document.querySelectorAll(".remove-sub").forEach(btn => {
+    btn.addEventListener("click", e => {
+      objectives[e.target.dataset.idx].subObjectives.splice(e.target.dataset.sidx,1);
+      renderObjectives();
+    });
+  });
+  document.querySelectorAll(".toggle-sub").forEach(btn => {
+    btn.addEventListener("click", e => {
+      const idx = e.target.dataset.idx;
+      const subDiv = container.children[idx].querySelector(".sub-container");
+      if(subDiv.style.display === "none") subDiv.style.display = "block";
+      else subDiv.style.display = "none";
+    });
+  });
 }
 
-// Add objective
-document.getElementById("addObjectiveBtn").onclick = () => {
-  const text = document.getElementById("new-objective").value.trim();
-  if (!text) return;
-  objectives.push({ text: text, done: false });
-  renderObjectives("objectives-list", objectives, true, () => {}); // editable true
-  document.getElementById("new-objective").value = "";
-};
+document.getElementById("add-objective").addEventListener("click", () => {
+  objectives.push({title:"", description:"", done:false, subObjectives:[]});
+  renderObjectives();
+});
 
-// Create challenge
-document.getElementById("createChallengeBtn").onclick = async () => {
-  const title = document.getElementById("title").value.trim();
-  const game = document.getElementById("game").value.trim();
-  const description = document.getElementById("description").value.trim();
+document.getElementById("save-challenge").addEventListener("click", async () => {
+  const title = document.getElementById("challenge-title").value.trim();
+  const game = document.getElementById("challenge-game").value.trim();
+  const description = document.getElementById("challenge-desc").value.trim();
+  const user = await getCurrentUser();
+  if(!user) { document.getElementById("message").textContent="Please log in"; return; }
+  if(!title || !game) { document.getElementById("message").textContent="Title and game required"; return; }
 
-  if (!title || !game || objectives.length === 0) {
-    document.getElementById("message").textContent = "Please fill all fields and add at least one objective.";
-    return;
-  }
-
-  const { data, error } = await supabaseClient.from("challenges").insert([{
-    title,
-    game,
-    description,
-    objectives,
-    creator: user.email,
-    created_at: new Date()
+  const {data,error} = await supabaseClient.from("challenges").insert([{
+    title, game, description, objectives,
+    edit_key: Math.random().toString(36).substring(2,15),
+    created_by: user.id
   }]);
 
-  if (error) {
-    document.getElementById("message").textContent = "Error creating challenge: " + error.message;
-    console.error(error);
-  } else {
-    document.getElementById("message").textContent = "Challenge created!";
-    window.location.href = `view.html?id=${data[0].id}`;
-  }
-};
-</script>
+  if(error){ document.getElementById("message").textContent="Error: "+error.message; console.error(error); }
+  else { document.getElementById("message").textContent="Challenge saved!"; setTimeout(()=>window.location.href="browse.html",1000); }
+});
 
+renderObjectives();
+</script>
 </body>
 </html>
