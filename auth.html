@@ -20,58 +20,69 @@
 </nav>
 
 <div class="challenge-card">
-  <h1>Login or Sign Up</h1>
-  <p>Enter your email to receive a magic link:</p>
+  <h1>Login / Sign Up</h1>
 
-  <input type="email" id="email" placeholder="you@example.com" />
-  <button id="loginBtn">Send Magic Link</button>
+  <label for="email">Email:</label><br>
+  <input type="email" id="email" placeholder="you@example.com" /><br><br>
+
+  <label for="password">Password:</label><br>
+  <input type="password" id="password" placeholder="Password" /><br><br>
+
+  <button id="loginBtn">Login</button>
+  <button id="signupBtn">Sign Up</button>
 
   <p id="message" style="color:#facc15; margin-top:1rem;"></p>
 </div>
 
 <script>
-updateAuthLink();
+updateAuthLink(); // update nav based on login status
 
-// Handle magic link login
-async function handleMagicLink() {
-  const { data, error } = await supabaseClient.auth.getSessionFromUrl();
-  if (error) {
-    console.error("Magic link error:", error.message);
-    document.getElementById("message").textContent = "Magic link failed. Try again.";
-    return;
-  }
-
-  if (data.session) {
-    // Successful login
-    document.getElementById("message").textContent = "Logged in successfully! Redirecting…";
-    window.location.href = "index.html"; // or my.html
-  }
-}
-
-// Check if user is coming from a magic link
-handleMagicLink();
-
-// Send magic link on button click
-document.getElementById("loginBtn").onclick = async () => {
+// Sign up
+document.getElementById("signupBtn").onclick = async () => {
   const email = document.getElementById("email").value.trim();
-  if (!email) {
-    document.getElementById("message").textContent = "Please enter your email.";
+  const password = document.getElementById("password").value.trim();
+
+  if (!email || !password) {
+    document.getElementById("message").textContent = "Please enter email and password.";
     return;
   }
 
-  const { error } = await supabaseClient.auth.signInWithOtp({
+  const { data, error } = await supabaseClient.auth.signUp({
     email,
-    options: {
-      // Redirect back to this page after clicking the link
-      emailRedirectTo: window.location.origin + "/auth.html"
-    }
+    password
   });
 
   if (error) {
+    document.getElementById("message").textContent = "Sign-up error: " + error.message;
     console.error(error);
-    document.getElementById("message").textContent = "Error sending magic link: " + error.message;
   } else {
-    document.getElementById("message").textContent = "Magic link sent! Check your email.";
+    document.getElementById("message").textContent = "Sign-up successful! You can now log in.";
+  }
+};
+
+// Login
+document.getElementById("loginBtn").onclick = async () => {
+  const email = document.getElementById("email").value.trim();
+  const password = document.getElementById("password").value.trim();
+
+  if (!email || !password) {
+    document.getElementById("message").textContent = "Please enter email and password.";
+    return;
+  }
+
+  const { data, error } = await supabaseClient.auth.signInWithPassword({
+    email,
+    password
+  });
+
+  if (error) {
+    document.getElementById("message").textContent = "Login error: " + error.message;
+    console.error(error);
+  } else {
+    document.getElementById("message").textContent = "Login successful! Redirecting...";
+    setTimeout(() => {
+      window.location.href = "index.html"; // or "my.html"
+    }, 1000);
   }
 };
 </script>

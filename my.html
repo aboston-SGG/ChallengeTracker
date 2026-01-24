@@ -1,12 +1,40 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
+  <meta charset="UTF-8">
   <title>My Challenges</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <link rel="stylesheet" href="style.css">
   <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
   <script src="main.js"></script>
+  <style>
+    .objective {
+      display: flex;
+      align-items: center;
+      margin-bottom: 0.5rem;
+    }
+    .objective input[type="checkbox"] {
+      margin-right: 0.5rem;
+    }
+    .challenge-card {
+      margin-bottom: 2rem;
+      padding: 1rem;
+      border: 1px solid #ddd;
+      border-radius: 8px;
+    }
+    .progress-bar {
+      height: 1rem;
+      border-radius: 0.25rem;
+      background-color: #eee;
+      margin-top: 0.5rem;
+      overflow: hidden;
+    }
+    .progress-fill {
+      height: 100%;
+      background-color: #facc15;
+      width: 0%;
+    }
+  </style>
 </head>
 <body>
 
@@ -20,11 +48,7 @@
 </nav>
 
 <h1>My Challenges</h1>
-<p id="message" style="color:#facc15;"></p>
-
-<div id="my-challenge-list">
-  <!-- User's challenges will be injected here -->
-</div>
+<div id="my-challenges"></div>
 
 <script>
 updateAuthLink();
@@ -32,55 +56,81 @@ updateAuthLink();
 async function loadMyChallenges() {
   const user = await getCurrentUser();
   if (!user) {
-    document.getElementById("message").textContent = "Please log in to see your challenges.";
+    document.getElementById("my-challenges").textContent = "Please log in to see your challenges.";
     return;
   }
 
-  const { data, error } = await supabaseClient
+  const { data: userChallenges, error } = await supabaseClient
     .from("user_challenges")
-    .select("*, challenges(*)") // join challenge details
+    .select(`*, challenges(*)`)
     .eq("user_id", user.id)
     .order("created_at", { ascending: false });
 
-  const container = document.getElementById("my-challenge-list");
-  if (error || !data) {
-    container.innerHTML = "<p>No challenges found.</p>";
+  if (error) {
     console.error(error);
+    document.getElementById("my-challenges").textContent = "Error loading challenges.";
     return;
   }
 
+  const container = document.getElementById("my-challenges");
   container.innerHTML = "";
 
-  data.forEach(entry => {
-    const challenge = entry.challenges;
+  userChallenges.forEach(uc => {
+    const ch = uc.challenges;
+    const div = document.createElement("div");
+    div.className = "challenge-card";
 
-    const card = document.createElement("div");
-    card.className = "challenge-card";
+    const objectives = ch.objectives || [];
+    const progressPercent = updateProgressBarForDiv(div, objectives);
 
-    card.innerHTML = `
-      <h2>${challenge.title}</h2>
-      <p class="meta">Game: ${challenge.game} | By: ${challenge.creator || "Anonymous"}</p>
-      <p>${challenge.description}</p>
-      <div class="progress-container"><div id="progress-bar-${challenge.id}" class="progress-bar"></div></div>
-      <p id="progress-text-${challenge.id}"></p>
-      <div class="like-section">
-        <button id="likeBtn-${challenge.id}">❤️ Like</button>
-        <span id="likeCount-${challenge.id}"></span>
+    // Build objectives list
+    const objectivesList = objectives.map((obj, idx) => `
+      <div class="objective">
+        <input type="checkbox" data-index="${idx}" ${obj.done ? "checked" : ""}>
+        <span>${obj.text}</span>
       </div>
-      <a href="view.html?id=${challenge.id}&edit=${entry.edit_key}">View / Edit →</a>
+    `).join("");
+
+    div.innerHTML = `
+      <h2>${ch.title}</h2>
+      <p class="meta">Game: ${ch.game}</p>
+      <p>${ch.description}</p>
+      <div class="progress-bar"><div class="progress-fill" style="width:${progressPercent}%;"></div></div>
+      <div class="objectives">${objectivesList}</div>
     `;
 
-    container.appendChild(card);
+    // Make checkboxes editable
+    const checkboxes = div.querySelectorAll("input[type='checkbox']");
+    checkboxes.forEach(cb => {
+      cb.addEventListener("change", async (e) => {
+        const idx = parseInt(cb.dataset.index);
+        objectives[idx].done = cb.checked;
 
-    // Render progress
-    const progressText = updateProgressBar(`progress-bar-${challenge.id}`, challenge.objectives || []);
-    document.getElementById(`progress-text-${challenge.id}`).textContent = "Progress: " + progressText;
+        // Update progress bar
+        const newPercent = updateProgressBarForDiv(div, objectives);
 
-    // Likes
-    const likeBtn = document.getElementById(`likeBtn-${challenge.id}`);
-    likeBtn.onclick = () => toggleLike(challenge.id, `likeBtn-${challenge.id}`, `likeCount-${challenge.id}`);
-    updateLikeCount(challenge.id, `likeCount-${challenge.id}`);
+        // Save progress to Supabase
+        const { error } = await supabaseClient
+          .from("user_challenges")
+          .update({ objectives })
+          .eq("id", uc.id);
+
+        if (error) console.error("Error saving progress:", error.message);
+      });
+    });
+
+    container.appendChild(div);
   });
+}
+
+// Helper: Update progress bar in a challenge card div
+function updateProgressBarForDiv(div, objectives) {
+  const total = objectives.length;
+  const done = objectives.filter(o => o.done).length;
+  const percent = total ? Math.round((done / total) * 100) : 0;
+  const fill = div.querySelector(".progress-fill");
+  if (fill) fill.style.width = percent + "%";
+  return percent;
 }
 
 loadMyChallenges();

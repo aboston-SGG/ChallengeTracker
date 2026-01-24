@@ -1,8 +1,8 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <title>Challenge Feed</title>
+  <meta charset="UTF-8">
+  <title>Feed</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <link rel="stylesheet" href="style.css">
   <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
@@ -20,61 +20,44 @@
 </nav>
 
 <h1>Challenge Feed</h1>
-
-<div id="feed-list">
-  <!-- Challenge cards injected here -->
-</div>
+<div id="feed-list"></div>
 
 <script>
 updateAuthLink();
 
 async function loadFeed() {
-  // Load most recent 20 challenges for feed
-  const { data, error } = await supabaseClient
+  // Example: latest challenges
+  const { data: challenges, error } = await supabaseClient
     .from("challenges")
     .select("*")
     .order("created_at", { ascending: false })
-    .limit(20);
+    .limit(10);
 
-  const feed = document.getElementById("feed-list");
-  if (error || !data) {
-    feed.innerHTML = "<p>No challenges found.</p>";
+  if (error) {
     console.error(error);
+    document.getElementById("feed-list").textContent = "Error loading feed.";
     return;
   }
 
-  feed.innerHTML = "";
+  const list = document.getElementById("feed-list");
+  list.innerHTML = "";
 
-  data.forEach(challenge => {
-    const card = document.createElement("div");
-    card.className = "challenge-card";
+  challenges.forEach(ch => {
+    const div = document.createElement("div");
+    div.className = "challenge-card";
 
-    card.innerHTML = `
-      <h2>${challenge.title}</h2>
-      <p class="meta">Game: ${challenge.game} | By: ${challenge.creator || "Anonymous"}</p>
-      <p>${challenge.description}</p>
-      <div class="progress-container"><div id="progress-bar-${challenge.id}" class="progress-bar"></div></div>
-      <p id="progress-text-${challenge.id}"></p>
-      <div class="like-section">
-        <button id="likeBtn-${challenge.id}">❤️ Like</button>
-        <span id="likeCount-${challenge.id}"></span>
-      </div>
-      <a href="view.html?id=${challenge.id}">View Challenge →</a>
+    div.innerHTML = `
+      <h2>${ch.title}</h2>
+      <p class="meta">Game: ${ch.game}</p>
+      <p>${ch.description}</p>
+      <a href="view.html?id=${ch.id}" class="view-btn">View Challenge</a>
+      <button class="add-btn">Add to My Challenges</button>
     `;
 
-    feed.appendChild(card);
+    const addBtn = div.querySelector(".add-btn");
+    addBtn.onclick = () => addToMyChallenges(ch.id);
 
-    // Render progress
-    const progressText = updateProgressBar(
-      `progress-bar-${challenge.id}`,
-      challenge.objectives || []
-    );
-    document.getElementById(`progress-text-${challenge.id}`).textContent = "Progress: " + progressText;
-
-    // Setup likes
-    const likeBtn = document.getElementById(`likeBtn-${challenge.id}`);
-    likeBtn.onclick = () => toggleLike(challenge.id, `likeBtn-${challenge.id}`, `likeCount-${challenge.id}`);
-    updateLikeCount(challenge.id, `likeCount-${challenge.id}`);
+    list.appendChild(div);
   });
 }
 
