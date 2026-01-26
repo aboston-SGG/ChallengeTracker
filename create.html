@@ -19,23 +19,27 @@
   <a href="#" id="auth-link">Login</a>
 </nav>
 
-<div class="challenge-card">
-  <h1>Create Challenge</h1>
-  <label>Title:</label>
-  <input type="text" id="challenge-title" placeholder="Challenge Title" /><br>
+<div class="page-container">
+  <div class="challenge-card">
+    <h1>Create Challenge</h1>
 
-  <label>Game:</label>
-  <input type="text" id="challenge-game" placeholder="Game Name" /><br>
+    <label>Title:</label>
+    <input type="text" id="challenge-title" placeholder="Challenge Title" />
 
-  <label>Description:</label>
-  <textarea id="challenge-desc" placeholder="Challenge Description"></textarea><br>
+    <label>Game:</label>
+    <input type="text" id="challenge-game" placeholder="Game Name" />
 
-  <h2>Objectives</h2>
-  <div id="objectives-container"></div>
-  <button id="add-objective">Add Objective</button><br><br>
+    <label>Description:</label>
+    <textarea id="challenge-desc" placeholder="Challenge Description"></textarea>
 
-  <button id="save-challenge">Save Challenge</button>
-  <p id="message" style="color:#facc15;"></p>
+    <h2>Objectives</h2>
+    <div id="objectives-container"></div>
+    <button id="add-objective">Add Objective</button>
+
+    <br><br>
+    <button id="save-challenge">Save Challenge</button>
+    <p id="message"></p>
+  </div>
 </div>
 
 <script>
@@ -50,7 +54,7 @@ function renderObjectives() {
     const div = document.createElement("div");
     div.className = "objective";
 
-    const subToggle = obj.subObjectives?.length ? '<button class="toggle-sub" data-idx="'+idx+'">Toggle Sub-Objectives</button>' : '';
+    const subToggle = obj.subObjectives?.length ? `<button class="toggle-sub" data-idx="${idx}">Toggle Sub-Objectives</button>` : '';
 
     div.innerHTML = `
       <input type="text" placeholder="Objective Title" value="${obj.title || ''}" data-idx="${idx}" class="obj-title"><br>
@@ -113,8 +117,7 @@ function renderObjectives() {
     btn.addEventListener("click", e => {
       const idx = e.target.dataset.idx;
       const subDiv = container.children[idx].querySelector(".sub-container");
-      if(subDiv.style.display === "none") subDiv.style.display = "block";
-      else subDiv.style.display = "none";
+      subDiv.style.display = subDiv.style.display === "none" ? "block" : "none";
     });
   });
 }
@@ -139,10 +142,14 @@ document.getElementById("save-challenge").addEventListener("click", async () => 
   }]);
 
   if(error){ document.getElementById("message").textContent="Error: "+error.message; console.error(error); }
-  else { document.getElementById("message").textContent="Challenge saved!"; setTimeout(()=>window.location.href="browse.html",1000); }
+  else { 
+    document.getElementById("message").textContent="Challenge saved!";
+    setTimeout(()=>window.location.href="browse.html",1000);
+  }
 });
 
 renderObjectives();
 </script>
+
 </body>
 </html>

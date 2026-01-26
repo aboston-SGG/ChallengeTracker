@@ -6,13 +6,13 @@ body {
   max-width: 900px;
   margin: 0 auto;
   padding: 2rem;
-  background-color: #f9f9f9;
-  color: #111;
+  background-color: #0f172a; /* deep navy */
+  color: #f3f4f6; /* off-white */
   line-height: 1.6;
 }
 
 a {
-  color: #facc15;
+  color: #facc15; /* gold accent */
   text-decoration: none;
 }
 
@@ -26,21 +26,24 @@ button {
   padding: 0.5rem 1rem;
   border-radius: 5px;
   cursor: pointer;
-  color: #111;
+  color: #111827; /* dark text for contrast */
   font-weight: bold;
-  transition: background 0.2s;
+  transition: background 0.2s, transform 0.1s;
 }
 
 button:hover {
   background-color: #eab308;
+  transform: scale(1.02);
 }
 
 input, textarea {
   padding: 0.5rem;
   border-radius: 4px;
-  border: 1px solid #ddd;
+  border: 1px solid #334155;
   width: 100%;
   margin-bottom: 0.5rem;
+  background-color: #1e293b; /* dark input background */
+  color: #f3f4f6;
 }
 
 /* ---------------------------
@@ -52,38 +55,42 @@ nav {
   gap: 1rem;
   margin-bottom: 2rem;
   flex-wrap: wrap;
+  background-color: #1e293b; /* dark navy navbar */
+  padding: 0.5rem 1rem;
+  border-radius: 0.5rem;
 }
 
 nav a {
   padding: 0.5rem 1rem;
-  background: #111;
-  color: #facc15;
+  background: #0f172a;
+  color: #f3f4f6;
   border-radius: 5px;
   font-weight: bold;
 }
 
 nav a:hover {
   background: #facc15;
-  color: #111;
+  color: #0f172a;
 }
 
 /* ---------------------------
    Challenge Cards
 --------------------------- */
 .challenge-card {
-  background: #fff;
-  padding: 1rem;
-  border-radius: 10px;
-  box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+  background: #1e293b; /* dark navy card */
+  padding: 2rem;
+  border-radius: 1rem;
+  box-shadow: 0 4px 15px rgba(0,0,0,0.4);
   margin-bottom: 2rem;
+  color: #f3f4f6;
 }
 
-.challenge-card h2 {
-  margin-top: 0;
+.challenge-card h1, .challenge-card h2 {
+  color: #facc15;
 }
 
 .meta {
-  color: #555;
+  color: #94a3b8; /* lighter gray */
   margin-bottom: 1rem;
 }
 
@@ -91,18 +98,21 @@ nav a:hover {
    Objectives & Sub-Objectives
 --------------------------- */
 .objective {
-  border: 1px solid #eee;
+  border: 1px solid #334155;
   padding: 0.75rem;
   border-radius: 6px;
   margin-bottom: 0.5rem;
+  display: flex;
+  align-items: center;
 }
 
 .subobjective {
   margin-left: 1.5rem;
-  border-left: 2px solid #eee;
+  border-left: 2px solid #334155;
   padding-left: 0.5rem;
   display: flex;
   align-items: center;
+  color: #cbd5e1; /* lighter subobjective text */
 }
 
 .objective-title {
@@ -110,10 +120,11 @@ nav a:hover {
   margin-left: 0.5rem;
 }
 
+/* Progress Bars */
 .progress-bar {
   height: 1rem;
   border-radius: 0.25rem;
-  background-color: #eee;
+  background-color: #334155;
   margin-top: 0.5rem;
   overflow: hidden;
 }
@@ -135,6 +146,17 @@ form label {
 }
 
 /* ---------------------------
+   Comments
+--------------------------- */
+.comment {
+  padding: 8px;
+  border-bottom: 1px solid #334155;
+  background-color: #0f172a;
+  border-radius: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+
+/* ---------------------------
    Responsive
 --------------------------- */
 @media (max-width: 600px) {
@@ -144,11 +166,15 @@ form label {
   }
 
   .challenge-card {
-    padding: 0.75rem;
+    padding: 1rem;
   }
 }
 
-.comment {
-  padding: 8px;
-  border-bottom: 1px solid #444;
+/* ---------------------------
+   Message / Alerts
+--------------------------- */
+#message {
+  margin-top: 1rem;
+  text-align: center;
+  color: #facc15;
 }

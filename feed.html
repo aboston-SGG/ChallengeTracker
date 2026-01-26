@@ -1,8 +1,9 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
 <meta charset="UTF-8">
 <title>Activity Feed</title>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
 <link rel="stylesheet" href="style.css">
 <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
 <script src="main.js"></script>
@@ -18,12 +19,15 @@
   <a href="auth.html" id="auth-link">Login</a>
 </nav>
 
-<h1>Activity Feed</h1>
-<div id="feed"></div>
+<div class="page-container">
+  <h1 style="text-align:center; margin-top:1rem;">Activity Feed</h1>
+  <div id="feed" class="challenge-list"></div>
+</div>
 
 <script>
 updateAuthLink();
 
+// Load recent activity feed
 async function loadFeed() {
   const { data, error } = await supabaseClient
     .from("activity")
@@ -43,8 +47,7 @@ async function loadFeed() {
     const div = document.createElement("div");
     div.className = "challenge-card";
     div.innerHTML = `
-      <strong>Someone</strong> ${row.action} in
-      <em>${row.challenges.title}</em>
+      <p><strong>Someone</strong> ${row.action} in <em>${row.challenges.title}</em></p>
       <div class="meta">${new Date(row.created_at).toLocaleString()}</div>
     `;
     container.appendChild(div);
@@ -53,5 +56,6 @@ async function loadFeed() {
 
 loadFeed();
 </script>
+
 </body>
 </html>

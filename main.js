@@ -1,12 +1,17 @@
 // --- Supabase Setup ---
 const SUPABASE_URL = "https://ffbqgczghzervntyhfvd.supabase.co";
-const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZmYnFnY3pnaHplcnZudHloZnZkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjgzNzU1MTAsImV4cCI6MjA4Mzk1MTUxMH0.N8eowQR-yhK9Hd6PrvxdHR30GYWc7U2xGdzJNw4u5U4"; // replace with anon key
+const SUPABASE_ANON_KEY = "YOUR_ANON_KEY"; // replace with your anon key
 const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 // --- Helper: Get currently logged-in user ---
 async function getCurrentUser() {
-  const { data } = await supabaseClient.auth.getUser();
-  return data.user; // returns null if not logged in
+  try {
+    const { data } = await supabaseClient.auth.getUser();
+    return data.user || null;
+  } catch (err) {
+    console.error("Error getting current user:", err);
+    return null;
+  }
 }
 
 // --- Update auth link in nav ---
@@ -24,18 +29,24 @@ async function updateAuthLink() {
   }
 }
 
-// --- Generate a random edit key for user challenges ---
+// --- Generate a random edit key ---
 function generateEditKey() {
   return Math.random().toString(36).substring(2, 15);
 }
 
 // --- Update progress bar helper ---
 function updateProgressBar(progressBarId, objectives) {
-  const total = objectives.length;
-  const done = objectives.filter(o => o.done).length;
-  const percent = total ? Math.round((done / total) * 100) : 0;
+  let total = 0, done = 0;
 
+  objectives.forEach(o => {
+    total++;
+    if (o.done) done++;
+    (o.subObjectives || []).forEach(s => { total++; if (s.done) done++; });
+  });
+
+  const percent = total ? Math.round((done / total) * 100) : 0;
   const bar = document.getElementById(progressBarId);
+
   if (bar) {
     bar.style.width = percent + "%";
     bar.style.backgroundColor = "#facc15";
@@ -49,72 +60,129 @@ function updateProgressBar(progressBarId, objectives) {
 // --- Like system ---
 async function toggleLike(challengeId, btnId, countId) {
   const user = await getCurrentUser();
-  if (!user) {
-    alert("Please log in to like challenges.");
-    return;
+  if (!user) return alert("Please log in to like challenges.");
+
+  try {
+    const { data: existingLikes } = await supabaseClient
+      .from("likes")
+      .select("*")
+      .eq("challenge_id", challengeId)
+      .eq("user_id", user.id)
+      .single();
+
+    if (existingLikes) {
+      await supabaseClient.from("likes").delete().eq("id", existingLikes.id);
+    } else {
+      await supabaseClient.from("likes").insert({
+        challenge_id: challengeId,
+        user_id: user.id
+      });
+    }
+
+    updateLikeCount(challengeId, countId);
+  } catch (err) {
+    console.error("Error toggling like:", err);
   }
-
-  // Check if user already liked this challenge
-  const { data: existingLikes } = await supabaseClient
-    .from("likes")
-    .select("*")
-    .eq("challenge_id", challengeId)
-    .eq("user_id", user.id)
-    .single();
-
-  if (existingLikes) {
-    // Remove like
-    await supabaseClient.from("likes").delete()
-      .eq("id", existingLikes.id);
-  } else {
-    // Add like
-    await supabaseClient.from("likes").insert({
-      challenge_id: challengeId,
-      user_id: user.id
-    });
-  }
-
-  updateLikeCount(challengeId, countId);
 }
 
 // --- Update like count display ---
 async function updateLikeCount(challengeId, countId) {
-  const { data } = await supabaseClient
-    .from("likes")
-    .select("*", { count: "exact" })
-    .eq("challenge_id", challengeId);
+  try {
+    const { data } = await supabaseClient
+      .from("likes")
+      .select("*", { count: "exact" })
+      .eq("challenge_id", challengeId);
 
-  const countElem = document.getElementById(countId);
-  if (countElem) countElem.textContent = data?.length || 0;
+    const countElem = document.getElementById(countId);
+    if (countElem) countElem.textContent = data?.length || 0;
+  } catch (err) {
+    console.error("Error updating like count:", err);
+  }
 }
 
 // --- Add challenge to user's personal list ---
 async function addToMyChallenges(challengeId) {
   const user = await getCurrentUser();
-  if (!user) {
-    alert("Please log in to add challenges to your account.");
-    return;
+  if (!user) return alert("Please log in to add challenges to your account.");
+
+  try {
+    const { data: existing } = await supabaseClient
+      .from("user_challenges")
+      .select("*")
+      .eq("user_id", user.id)
+      .eq("challenge_id", challengeId)
+      .single();
+
+    if (existing) {
+      return alert("You already have this challenge in your list!");
+    }
+
+    await supabaseClient.from("user_challenges").insert({
+      user_id: user.id,
+      challenge_id: challengeId,
+      edit_key: generateEditKey()
+    });
+
+    alert("Challenge added to your list!");
+  } catch (err) {
+    console.error("Error adding challenge to user list:", err);
   }
+}
 
-  // Check if already added
-  const { data: existing } = await supabaseClient
-    .from("user_challenges")
-    .select("*")
-    .eq("user_id", user.id)
-    .eq("challenge_id", challengeId)
-    .single();
+// --- Post Comment ---
+async function postComment(challengeId, content) {
+  const user = await getCurrentUser();
+  if (!user) return alert("Login required.");
 
-  if (existing) {
-    alert("You already have this challenge in your list!");
-    return;
+  if (!content.trim()) return;
+
+  try {
+    await supabaseClient.from("comments").insert({
+      user_id: user.id,
+      challenge_id: challengeId,
+      content: content.trim()
+    });
+  } catch (err) {
+    console.error("Error posting comment:", err);
   }
+}
 
-  // Insert
-  await supabaseClient.from("user_challenges").insert({
-    user_id: user.id,
-    challenge_id: challengeId,
-    edit_key: generateEditKey()
-  });
+// --- Load Comments ---
+async function loadComments(challengeId, containerId) {
+  try {
+    const { data } = await supabaseClient
+      .from("comments")
+      .select("id, content, created_at, user_id")
+      .eq("challenge_id", challengeId)
+      .order("created_at", { ascending: true });
 
-  alert("Challenge added to your list!");
+    const container = document.getElementById(containerId);
+    if (!container) return;
+
+    container.innerHTML = "";
+    data.forEach(c => {
+      const div = document.createElement("div");
+      div.className = "comment";
+      div.innerHTML = `
+        <p>${c.content}</p>
+        <small>${new Date(c.created_at).toLocaleString()}</small>
+      `;
+      container.appendChild(div);
+    });
+  } catch (err) {
+    console.error("Error loading comments:", err);
+  }
+}
+
+// --- Log activity ---
+async function logActivity(userId, challengeId, action = "updated progress") {
+  try {
+    await supabaseClient.from("activity").insert({
+      user_id: userId,
+      challenge_id: challengeId,
+      action
+    });
+  } catch (err) {
+    console.error("Error logging activity:", err);
+  }
 }

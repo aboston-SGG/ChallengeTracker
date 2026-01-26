@@ -3,18 +3,21 @@
 <head>
 <meta charset="UTF-8">
 <title>View Challenge</title>
-<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="viewport" content="width=device-width, initial-scale=1">
 <link rel="stylesheet" href="style.css">
 <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
 <script src="main.js"></script>
 <style>
-.objective { margin-bottom:1rem; padding:0.75rem; border:1px solid #ddd; border-radius:6px; background:#fff; }
-.subobjective { margin-left:1.5rem; border-left:2px solid #eee; padding-left:0.5rem; display:flex; align-items:center; }
-.objective-title { font-weight:bold; margin-left:0.5rem; }
-.progress-container { display:flex; align-items:center; gap:0.5rem; margin-top:0.5rem; }
-.progress-bar { flex:1; height:1rem; border-radius:0.25rem; background:#eee; overflow:hidden; }
-.progress-fill { height:100%; background:#facc15; width:0%; transition:width 0.3s ease; }
-.toggle-sub { font-size:0.8rem; margin-left:0.5rem; cursor:pointer; background:#f3f4f6; padding:0.2rem 0.5rem; border-radius:4px; }
+body { font-family: system-ui, sans-serif; max-width: 700px; margin: 3rem auto; padding: 1rem; }
+ul { padding-left: 0; list-style: none; }
+li { margin-bottom: 0.5rem; display: flex; align-items: center; }
+li span { margin-left: 0.5rem; } /* text next to checkbox */
+.meta { color: #555; margin-bottom: 1rem; }
+.comment { padding: 8px; border-bottom: 1px solid #444; }
+.objective { margin-left: 0; }
+.subobjective { margin-left: 1.5rem; }
+.progress-bar { width: 100%; background: #ddd; height: 12px; margin: 5px 0; border-radius: 6px; }
+.progress-fill { background: #4caf50; height: 100%; width: 0%; border-radius: 6px; }
 </style>
 </head>
 <body>
@@ -25,158 +28,183 @@
   <a href="browse.html">Browse</a>
   <a href="my.html">My Challenges</a>
   <a href="feed.html">Feed</a>
-  <a href="#" id="auth-link">Login</a>
+  <a href="auth.html" id="auth-link">Login</a>
 </nav>
 
-<div class="challenge-card">
-  <h1 id="title"></h1>
-  <div class="meta" id="game"></div>
-  <p id="description"></p>
-  <div class="progress-container">
-    <div class="progress-bar"><div class="progress-fill" id="progress-fill"></div></div>
-    <span id="progress-text">0%</span>
-  </div>
-  <div id="objectives"></div>
-</div>
+<h1 id="title"></h1>
+<div class="meta" id="game"></div>
+<p id="description"></p>
 
+<!-- Likes -->
+<button id="like-btn">👍 Like</button> <span id="like-count">0</span> likes
+
+<!-- Progress -->
+<p id="progress"></p>
+<div class="progress-bar"><div class="progress-fill"></div></div>
+
+<h2>Objectives</h2>
+<ul id="objectives"></ul>
+
+<!-- Comments -->
 <h2>Discussion</h2>
 <div id="comments"></div>
-
-<textarea id="comment-input" placeholder="Write a comment..."></textarea>
-<button onclick="postComment()">Post</button>
+<textarea id="comment-input" placeholder="Write a comment..."></textarea><br>
+<button id="post-comment">Post Comment</button>
 
 <script>
-updateAuthLink();
+const SUPABASE_URL = "https://ffbqgczghzervntyhfvd.supabase.co";
+const SUPABASE_ANON_KEY = "YOUR_ANON_KEY"; // replace with your anon key
+const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
 const params = new URLSearchParams(window.location.search);
 const challengeId = params.get("id");
-const editKey = params.get("edit");
 let challengeData = null;
 
+updateAuthLink();
+
+// Load Challenge
 async function loadChallenge() {
-  if(!challengeId) return;
-  const {data,error} = await supabaseClient.from("challenges").select("*").eq("id",challengeId).single();
-  if(error || !data){ document.body.innerHTML="<p>Challenge not found.</p>"; return; }
+  const { data, error } = await supabaseClient
+    .from("challenges")
+    .select("*")
+    .eq("id", challengeId)
+    .single();
+
+  if (error || !data) return document.body.innerHTML = "<p>Challenge not found.</p>";
+
   challengeData = data;
-  renderChallenge();
+  renderChallenge(data);
+  loadLikes();
+  loadComments();
 }
 
-function renderChallenge() {
-  const isEditable = editKey && challengeData.edit_key && editKey===challengeData.edit_key;
+function renderChallenge(data) {
+  document.getElementById("title").textContent = data.title;
+  document.getElementById("game").textContent = "Game: " + data.game;
+  document.getElementById("description").textContent = data.description;
 
-  document.getElementById("title").textContent = challengeData.title;
-  document.getElementById("game").textContent = "Game: "+challengeData.game;
-  document.getElementById("description").textContent = challengeData.description;
-const favBtn = document.createElement("button");
-favBtn.textContent = "⭐ Save to My Challenges";
+  const list = document.getElementById("objectives");
+  list.innerHTML = "";
 
-favBtn.onclick = async () => {
-  const user = await getCurrentUser();
-  if (!user) { alert("Log in first"); return; }
+  (data.objectives || []).forEach((obj) => {
+    const li = document.createElement("li");
+    li.className = "objective";
 
-  const { error } = await supabaseClient.from("favorites").insert({
-    user_id: user.id,
-    challenge_id: challengeData.id
-  });
+    const cb = document.createElement("input");
+    cb.type = "checkbox";
+    cb.checked = obj.done || false;
 
-  if (!error) {
-    favBtn.textContent = "✅ Saved";
-    favBtn.disabled = true;
-  }
-};
-
-document.querySelector(".challenge-card").appendChild(favBtn);
-
-  const objectivesDiv = document.getElementById("objectives");
-  objectivesDiv.innerHTML = "";
-
-  const objectives = challengeData.objectives || [];
-
-  objectives.forEach((obj, idx) => {
-    const objDiv = document.createElement("div");
-    objDiv.className = "objective";
-
-    const objCheckbox = document.createElement("input");
-    objCheckbox.type = "checkbox";
-    objCheckbox.checked = obj.done || false;
-    objCheckbox.disabled = !isEditable;
-
-    objCheckbox.addEventListener("change", async ()=>{
-      obj.done = objCheckbox.checked;
-      renderProgress();
-      if(isEditable) await saveProgress();
+    cb.addEventListener("change", async () => {
+      obj.done = cb.checked;
+      updateProgress();
+      await saveProgress();
     });
 
-    const objTitle = document.createElement("span");
-    objTitle.className="objective-title";
-    objTitle.textContent = obj.title + ": " + obj.description;
+    li.appendChild(cb);
+    const textSpan = document.createElement("span");
+    textSpan.textContent = obj.title;
+    li.appendChild(textSpan);
+    list.appendChild(li);
 
-    objDiv.appendChild(objCheckbox);
-    objDiv.appendChild(objTitle);
+    // Sub-objectives
+    (obj.subObjectives || []).forEach(sub => {
+      const subLi = document.createElement("li");
+      subLi.className = "subobjective";
 
-    // Sub-objectives container
-    if(obj.subObjectives && obj.subObjectives.length){
-      const toggle = document.createElement("button");
-      toggle.className="toggle-sub";
-      toggle.textContent="Toggle Sub-Objectives";
-      let subVisible = true;
-      toggle.addEventListener("click", ()=>{ 
-        subVisible = !subVisible; 
-        subContainer.style.display = subVisible?"block":"none"; 
+      const subCb = document.createElement("input");
+      subCb.type = "checkbox";
+      subCb.checked = sub.done || false;
+
+      subCb.addEventListener("change", async () => {
+        sub.done = subCb.checked;
+        updateProgress();
+        await saveProgress();
       });
-      objDiv.appendChild(toggle);
 
-      const subContainer = document.createElement("div");
-      obj.subObjectives.forEach((sub,sidx)=>{
-        const subDiv = document.createElement("div");
-        subDiv.className="subobjective";
-
-        const subCheckbox = document.createElement("input");
-        subCheckbox.type="checkbox";
-        subCheckbox.checked = sub.done || false;
-        subCheckbox.disabled = !isEditable;
-
-        subCheckbox.addEventListener("change", async ()=>{
-          sub.done = subCheckbox.checked;
-          renderProgress();
-          if(isEditable) await saveProgress();
-        });
-
-        const subTitle = document.createElement("span");
-        subTitle.textContent = sub.title + ": " + sub.description;
-
-        subDiv.appendChild(subCheckbox);
-        subDiv.appendChild(subTitle);
-        subContainer.appendChild(subDiv);
-      });
-      objDiv.appendChild(subContainer);
-    }
-
-    objectivesDiv.appendChild(objDiv);
+      subLi.appendChild(subCb);
+      const subText = document.createElement("span");
+      subText.textContent = sub.title;
+      subLi.appendChild(subText);
+      list.appendChild(subLi);
+    });
   });
 
-  renderProgress();
+  updateProgress();
 }
 
-function renderProgress() {
-  let total=0, done=0;
+function updateProgress() {
   const objectives = challengeData.objectives || [];
-  objectives.forEach(obj=>{
-    total++; if(obj.done) done++;
-    (obj.subObjectives||[]).forEach(sub=>{ total++; if(sub.done) done++; });
+  let total = 0, done = 0;
+
+  objectives.forEach(o => {
+    total++; if (o.done) done++;
+    (o.subObjectives || []).forEach(s => { total++; if (s.done) done++; });
   });
-  const percent = total?Math.round(done/total*100):0;
-  document.getElementById("progress-fill").style.width = percent+"%";
-  document.getElementById("progress-text").textContent = percent+"%";
+
+  const percent = total ? Math.round(done / total * 100) : 0;
+  document.getElementById("progress").textContent = `Progress: ${done} / ${total} (${percent}%)`;
+  document.querySelector(".progress-fill").style.width = percent + "%";
 }
 
-async function saveProgress(){
-  const {error} = await supabaseClient.from("challenges").update({objectives:challengeData.objectives}).eq("id",challengeData.id);
-  if(error) console.error("Error saving progress:",error.message);
+// Save progress
+async function saveProgress() {
+  const { data: { user } } = await supabaseClient.auth.getUser();
+  if (!user) return;
+
+  const { error } = await supabaseClient
+    .from("user_challenges")
+    .update({ objectives: challengeData.objectives })
+    .eq("challenge_id", challengeId)
+    .eq("user_id", user.id);
+
+  if (error) console.error("Error saving progress:", error.message);
+  else await logActivity(user.id, challengeId);
 }
 
-loadChallenge();
+// Likes
+const likeBtn = document.getElementById("like-btn");
+const likeCount = document.getElementById("like-count");
+likeBtn.addEventListener("click", toggleLike);
 
-async function loadComments(challengeId) {
+async function loadLikes() {
+  const { data, error } = await supabaseClient
+    .from("challenge_likes")
+    .select("user_id")
+    .eq("challenge_id", challengeId);
+
+  if (error) return console.error(error);
+
+  likeCount.textContent = data.length;
+
+  const { data: { user } } = await supabaseClient.auth.getUser();
+  if (user && data.some(l => l.user_id === user.id)) likeBtn.textContent = "💔 Unlike";
+  else likeBtn.textContent = "👍 Like";
+}
+
+async function toggleLike() {
+  const { data: { user } } = await supabaseClient.auth.getUser();
+  if (!user) return alert("Login required.");
+
+  const { data: existing } = await supabaseClient
+    .from("challenge_likes")
+    .select("id")
+    .eq("challenge_id", challengeId)
+    .eq("user_id", user.id)
+    .single();
+
+  if (existing) {
+    await supabaseClient.from("challenge_likes").delete().eq("id", existing.id);
+  } else {
+    await supabaseClient.from("challenge_likes").insert({ challenge_id: challengeId, user_id: user.id });
+  }
+
+  loadLikes();
+}
+
+// Comments
+document.getElementById("post-comment").addEventListener("click", postComment);
+
+async function loadComments() {
   const { data, error } = await supabaseClient
     .from("comments")
     .select("content, created_at, user_id")
@@ -185,40 +213,50 @@ async function loadComments(challengeId) {
 
   if (error) return console.error(error);
 
-  const list = document.getElementById("comments");
-  list.innerHTML = "";
+  const container = document.getElementById("comments");
+  container.innerHTML = "";
 
   data.forEach(c => {
     const div = document.createElement("div");
     div.className = "comment";
     div.innerHTML = `
-      <strong>User</strong>
       <p>${c.content}</p>
-      <span class="meta">${new Date(c.created_at).toLocaleString()}</span>
+      <small>${new Date(c.created_at).toLocaleString()}</small>
     `;
-    list.appendChild(div);
+    container.appendChild(div);
   });
 }
 
 async function postComment() {
-  const user = await getCurrentUser();
-  if (!user) return alert("Login first.");
+  const { data: { user } } = await supabaseClient.auth.getUser();
+  if (!user) return alert("Login required.");
 
   const content = document.getElementById("comment-input").value.trim();
   if (!content) return;
 
-  await supabaseClient.from("comments").insert({
+  const { error } = await supabaseClient.from("comments").insert({
     user_id: user.id,
     challenge_id: challengeId,
     content
   });
 
+  if (error) return console.error(error.message);
+
   document.getElementById("comment-input").value = "";
-  loadComments(challengeId);
+  loadComments();
 }
 
-loadComments();
-</script>
+// Activity log
+async function logActivity(userId, challengeId) {
+  await supabaseClient.from("activity").insert({
+    user_id: userId,
+    challenge_id: challengeId,
+    action: "updated progress"
+  });
+}
 
+// Initial load
+loadChallenge();
+</script>
 </body>
 </html>

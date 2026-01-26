@@ -19,12 +19,15 @@
   <a href="auth.html" id="auth-link">Login</a>
 </nav>
 
-<h1>Browse Challenges</h1>
-<div id="challenge-list"></div>
+<div class="page-container">
+  <h1 style="text-align:center; margin-top:1rem;">Browse Challenges</h1>
+  <div id="challenge-list" class="challenge-list"></div>
+</div>
 
 <script>
 updateAuthLink();
 
+// Load all challenges
 async function loadChallenges() {
   const { data, error } = await supabaseClient
     .from("challenges")
@@ -42,14 +45,46 @@ async function loadChallenges() {
   data.forEach(ch => {
     const div = document.createElement("div");
     div.className = "challenge-card";
+
     div.innerHTML = `
       <h2>${ch.title}</h2>
       <p class="meta">Game: ${ch.game}</p>
       <p>${ch.description}</p>
-      <a href="view.html?id=${ch.id}">
-        <button>View Challenge</button>
-      </a>
+      <div style="display:flex; justify-content:space-between; margin-top:1rem;">
+        <a href="view.html?id=${ch.id}">
+          <button>View Challenge</button>
+        </a>
+        <button class="like-btn" data-id="${ch.id}">❤️ Like</button>
+      </div>
     `;
+
+    // Like button functionality
+    const likeBtn = div.querySelector(".like-btn");
+    likeBtn.addEventListener("click", async () => {
+      const { data: { user } } = await supabaseClient.auth.getUser();
+      if (!user) return alert("Please log in to like a challenge.");
+
+      // Toggle like
+      const { data: existing } = await supabaseClient
+        .from("challenge_likes")
+        .select("id")
+        .eq("challenge_id", ch.id)
+        .eq("user_id", user.id)
+        .single();
+
+      if (existing) {
+        await supabaseClient.from("challenge_likes").delete().eq("id", existing.id);
+      } else {
+        await supabaseClient.from("challenge_likes").insert({
+          challenge_id: ch.id,
+          user_id: user.id
+        });
+      }
+
+      // Optionally reload challenges or update like count here
+      loadChallenges();
+    });
+
     container.appendChild(div);
   });
 }

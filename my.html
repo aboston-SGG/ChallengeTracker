@@ -1,8 +1,9 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
 <meta charset="UTF-8">
 <title>My Challenges</title>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
 <link rel="stylesheet" href="style.css">
 <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
 <script src="main.js"></script>
@@ -18,33 +19,40 @@
   <a href="auth.html" id="auth-link">Login</a>
 </nav>
 
-<h1>My Challenges</h1>
-<div id="my-challenges"></div>
+<div class="page-container">
+  <h1 style="text-align:center; margin-top:1rem;">My Challenges</h1>
+  <div id="my-challenges" class="challenge-list">
+    <!-- User challenges will be injected here -->
+  </div>
+</div>
 
 <script>
 updateAuthLink();
 
 async function loadMyChallenges() {
   const user = await getCurrentUser();
+  const container = document.getElementById("my-challenges");
+
   if (!user) {
-    document.getElementById("my-challenges").innerHTML = "<p>Please log in.</p>";
+    container.innerHTML = "<p>Please log in to see your challenges.</p>";
     return;
   }
 
   const { data, error } = await supabaseClient
     .from("user_challenges")
     .select("id, objectives, challenges(*)")
-    .eq("user_id", user.id);
+    .eq("user_id", user.id)
+    .order("created_at", { ascending: false });
 
   if (error) {
     console.error(error);
+    container.innerHTML = "<p>Error loading challenges.</p>";
     return;
   }
 
-  const container = document.getElementById("my-challenges");
   container.innerHTML = "";
 
-  for (const row of data) {
+  data.forEach(row => {
     const ch = row.challenges;
     const objectives = row.objectives || ch.objectives || [];
 
@@ -53,7 +61,7 @@ async function loadMyChallenges() {
 
     card.innerHTML = `
       <h2>${ch.title}</h2>
-      <p>${ch.game}</p>
+      <p class="meta">Game: ${ch.game}</p>
       <div class="progress-container">
         <div class="progress-bar"><div class="progress-fill"></div></div>
         <span class="progress-text">0%</span>
@@ -105,7 +113,7 @@ async function loadMyChallenges() {
     });
 
     updateProgress(card, objectives);
-  }
+  });
 }
 
 async function saveProgress(id, objectives) {
@@ -136,5 +144,6 @@ function updateProgress(card, objectives) {
 
 loadMyChallenges();
 </script>
+
 </body>
 </html>

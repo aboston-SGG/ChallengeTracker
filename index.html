@@ -19,14 +19,16 @@
   <a href="#" id="auth-link">Login</a>
 </nav>
 
-<div class="challenge-card">
-  <h1>Welcome to Challenge Tracker!</h1>
-  <p>Create, track, and share challenges for your favorite games. Start by browsing or creating a new challenge.</p>
-</div>
+<div class="page-container">
+  <div class="challenge-card">
+    <h1>Welcome to Challenge Tracker!</h1>
+    <p>Create, track, and share challenges for your favorite games. Start by browsing or creating a new challenge.</p>
+  </div>
 
-<h2>Recent Challenges</h2>
-<div id="recent-challenges">
-  <!-- Recent challenge cards will be injected here -->
+  <h2 style="text-align:center; margin-top:2rem;">Recent Challenges</h2>
+  <div id="recent-challenges" class="challenge-list">
+    <!-- Recent challenge cards will be injected here -->
+  </div>
 </div>
 
 <script>
@@ -37,7 +39,7 @@ async function loadRecentChallenges() {
     .from("challenges")
     .select("*")
     .order("created_at", { ascending: false })
-    .limit(5); // show 5 newest challenges
+    .limit(5);
 
   const container = document.getElementById("recent-challenges");
   if (error || !data) {
@@ -48,32 +50,34 @@ async function loadRecentChallenges() {
 
   container.innerHTML = "";
 
-  data.forEach(challenge => {
+  data.forEach(ch => {
     const card = document.createElement("div");
     card.className = "challenge-card";
 
     card.innerHTML = `
-      <h2>${challenge.title}</h2>
-      <p class="meta">Game: ${challenge.game} | By: ${challenge.creator || "Anonymous"}</p>
-      <div class="progress-container"><div id="progress-bar-${challenge.id}" class="progress-bar"></div></div>
-      <p id="progress-text-${challenge.id}"></p>
-      <div class="like-section">
-        <button id="likeBtn-${challenge.id}">❤️ Like</button>
-        <span id="likeCount-${challenge.id}"></span>
+      <h2>${ch.title}</h2>
+      <p class="meta">Game: ${ch.game} | By: ${ch.creator || "Anonymous"}</p>
+      <div class="progress-container">
+        <div id="progress-bar-${ch.id}" class="progress-bar"></div>
       </div>
-      <a href="view.html?id=${challenge.id}">View Challenge →</a>
+      <p id="progress-text-${ch.id}"></p>
+      <div class="like-section">
+        <button id="likeBtn-${ch.id}">❤️ Like</button>
+        <span id="likeCount-${ch.id}"></span>
+      </div>
+      <a href="view.html?id=${ch.id}">View Challenge →</a>
     `;
 
     container.appendChild(card);
 
     // Progress bar
-    const progressText = updateProgressBar(`progress-bar-${challenge.id}`, challenge.objectives || []);
-    document.getElementById(`progress-text-${challenge.id}`).textContent = "Progress: " + progressText;
+    const progressText = updateProgressBar(`progress-bar-${ch.id}`, ch.objectives || []);
+    document.getElementById(`progress-text-${ch.id}`).textContent = "Progress: " + progressText;
 
     // Likes
-    const likeBtn = document.getElementById(`likeBtn-${challenge.id}`);
-    likeBtn.onclick = () => toggleLike(challenge.id, `likeBtn-${challenge.id}`, `likeCount-${challenge.id}`);
-    updateLikeCount(challenge.id, `likeCount-${challenge.id}`);
+    const likeBtn = document.getElementById(`likeBtn-${ch.id}`);
+    likeBtn.onclick = () => toggleLike(ch.id, `likeBtn-${ch.id}`, `likeCount-${ch.id}`);
+    updateLikeCount(ch.id, `likeCount-${ch.id}`);
   });
 }
 

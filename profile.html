@@ -19,16 +19,18 @@
   <a href="#" id="auth-link">Login</a>
 </nav>
 
-<h1>Profile</h1>
-<p id="message" style="color:#facc15;"></p>
+<div class="page-container">
+  <h1 style="text-align:center; margin-top:1rem;">Profile</h1>
+  <p id="message" style="color:#facc15; text-align:center;"></p>
 
-<div id="profile-card" class="challenge-card" style="display:none;">
-  <h2>User Info</h2>
-  <p>Email: <span id="user-email"></span></p>
-  <p>User ID: <span id="user-id"></span></p>
+  <div id="profile-card" class="challenge-card" style="display:none; max-width:500px; margin:1rem auto;">
+    <h2>User Info</h2>
+    <p>Email: <span id="user-email"></span></p>
+    <p>User ID: <span id="user-id"></span></p>
 
-  <h3>Manage Account</h3>
-  <button id="logoutBtn">Logout</button>
+    <h3>Manage Account</h3>
+    <button id="logoutBtn">Logout</button>
+  </div>
 </div>
 
 <script>
@@ -51,7 +53,7 @@ async function loadProfile() {
 
   document.getElementById("logoutBtn").onclick = async () => {
     await supabaseClient.auth.signOut();
-    window.location.reload();
+    window.location.href = "index.html";
   };
 }
 
