@@ -39,6 +39,12 @@
   <div id="objectives"></div>
 </div>
 
+<h2>Discussion</h2>
+<div id="comments"></div>
+
+<textarea id="comment-input" placeholder="Write a comment..."></textarea>
+<button onclick="postComment()">Post</button>
+
 <script>
 updateAuthLink();
 const params = new URLSearchParams(window.location.search);
@@ -60,6 +66,25 @@ function renderChallenge() {
   document.getElementById("title").textContent = challengeData.title;
   document.getElementById("game").textContent = "Game: "+challengeData.game;
   document.getElementById("description").textContent = challengeData.description;
+const favBtn = document.createElement("button");
+favBtn.textContent = "⭐ Save to My Challenges";
+
+favBtn.onclick = async () => {
+  const user = await getCurrentUser();
+  if (!user) { alert("Log in first"); return; }
+
+  const { error } = await supabaseClient.from("favorites").insert({
+    user_id: user.id,
+    challenge_id: challengeData.id
+  });
+
+  if (!error) {
+    favBtn.textContent = "✅ Saved";
+    favBtn.disabled = true;
+  }
+};
+
+document.querySelector(".challenge-card").appendChild(favBtn);
 
   const objectivesDiv = document.getElementById("objectives");
   objectivesDiv.innerHTML = "";
@@ -150,6 +175,49 @@ async function saveProgress(){
 }
 
 loadChallenge();
+
+async function loadComments(challengeId) {
+  const { data, error } = await supabaseClient
+    .from("comments")
+    .select("content, created_at, user_id")
+    .eq("challenge_id", challengeId)
+    .order("created_at", { ascending: true });
+
+  if (error) return console.error(error);
+
+  const list = document.getElementById("comments");
+  list.innerHTML = "";
+
+  data.forEach(c => {
+    const div = document.createElement("div");
+    div.className = "comment";
+    div.innerHTML = `
+      <strong>User</strong>
+      <p>${c.content}</p>
+      <span class="meta">${new Date(c.created_at).toLocaleString()}</span>
+    `;
+    list.appendChild(div);
+  });
+}
+
+async function postComment() {
+  const user = await getCurrentUser();
+  if (!user) return alert("Login first.");
+
+  const content = document.getElementById("comment-input").value.trim();
+  if (!content) return;
+
+  await supabaseClient.from("comments").insert({
+    user_id: user.id,
+    challenge_id: challengeId,
+    content
+  });
+
+  document.getElementById("comment-input").value = "";
+  loadComments(challengeId);
+}
+
+loadComments();
 </script>
 
 </body>

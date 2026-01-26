@@ -147,3 +147,8 @@ form label {
     padding: 0.75rem;
   }
 }
+
+.comment {
+  padding: 8px;
+  border-bottom: 1px solid #444;
+}

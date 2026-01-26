@@ -1,12 +1,11 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-  <meta charset="UTF-8">
-  <title>Feed</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <link rel="stylesheet" href="style.css">
-  <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
-  <script src="main.js"></script>
+<meta charset="UTF-8">
+<title>Activity Feed</title>
+<link rel="stylesheet" href="style.css">
+<script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+<script src="main.js"></script>
 </head>
 <body>
 
@@ -16,53 +15,43 @@
   <a href="browse.html">Browse</a>
   <a href="my.html">My Challenges</a>
   <a href="feed.html">Feed</a>
-  <a href="#" id="auth-link">Login</a>
+  <a href="auth.html" id="auth-link">Login</a>
 </nav>
 
-<h1>Challenge Feed</h1>
-<div id="feed-list"></div>
+<h1>Activity Feed</h1>
+<div id="feed"></div>
 
 <script>
 updateAuthLink();
 
 async function loadFeed() {
-  // Example: latest challenges
-  const { data: challenges, error } = await supabaseClient
-    .from("challenges")
-    .select("*")
+  const { data, error } = await supabaseClient
+    .from("activity")
+    .select("created_at, action, challenges(title)")
     .order("created_at", { ascending: false })
-    .limit(10);
+    .limit(25);
 
   if (error) {
     console.error(error);
-    document.getElementById("feed-list").textContent = "Error loading feed.";
     return;
   }
 
-  const list = document.getElementById("feed-list");
-  list.innerHTML = "";
+  const container = document.getElementById("feed");
+  container.innerHTML = "";
 
-  challenges.forEach(ch => {
+  data.forEach(row => {
     const div = document.createElement("div");
     div.className = "challenge-card";
-
     div.innerHTML = `
-      <h2>${ch.title}</h2>
-      <p class="meta">Game: ${ch.game}</p>
-      <p>${ch.description}</p>
-      <a href="view.html?id=${ch.id}" class="view-btn">View Challenge</a>
-      <button class="add-btn">Add to My Challenges</button>
+      <strong>Someone</strong> ${row.action} in
+      <em>${row.challenges.title}</em>
+      <div class="meta">${new Date(row.created_at).toLocaleString()}</div>
     `;
-
-    const addBtn = div.querySelector(".add-btn");
-    addBtn.onclick = () => addToMyChallenges(ch.id);
-
-    list.appendChild(div);
+    container.appendChild(div);
   });
 }
 
 loadFeed();
 </script>
-
 </body>
 </html>

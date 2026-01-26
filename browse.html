@@ -1,12 +1,12 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <title>Browse Challenges</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <link rel="stylesheet" href="style.css">
-  <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
-  <script src="main.js"></script>
+<meta charset="UTF-8">
+<title>Browse Challenges</title>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<link rel="stylesheet" href="style.css">
+<script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+<script src="main.js"></script>
 </head>
 <body>
 
@@ -16,7 +16,7 @@
   <a href="browse.html">Browse</a>
   <a href="my.html">My Challenges</a>
   <a href="feed.html">Feed</a>
-  <a href="#" id="auth-link">Login</a>
+  <a href="auth.html" id="auth-link">Login</a>
 </nav>
 
 <h1>Browse Challenges</h1>
@@ -26,36 +26,31 @@
 updateAuthLink();
 
 async function loadChallenges() {
-  const { data: challenges, error } = await supabaseClient
+  const { data, error } = await supabaseClient
     .from("challenges")
     .select("*")
     .order("created_at", { ascending: false });
 
   if (error) {
     console.error(error);
-    document.getElementById("challenge-list").textContent = "Error loading challenges.";
     return;
   }
 
-  const list = document.getElementById("challenge-list");
-  list.innerHTML = "";
+  const container = document.getElementById("challenge-list");
+  container.innerHTML = "";
 
-  challenges.forEach(ch => {
+  data.forEach(ch => {
     const div = document.createElement("div");
     div.className = "challenge-card";
-
     div.innerHTML = `
       <h2>${ch.title}</h2>
       <p class="meta">Game: ${ch.game}</p>
       <p>${ch.description}</p>
-      <a href="view.html?id=${ch.id}" class="view-btn">View Challenge</a>
-      <button class="add-btn">Add to My Challenges</button>
+      <a href="view.html?id=${ch.id}">
+        <button>View Challenge</button>
+      </a>
     `;
-
-    const addBtn = div.querySelector(".add-btn");
-    addBtn.onclick = () => addToMyChallenges(ch.id);
-
-    list.appendChild(div);
+    container.appendChild(div);
   });
 }
 
