@@ -1,6 +1,6 @@
 // --- Supabase Setup ---
 const SUPABASE_URL = "https://ffbqgczghzervntyhfvd.supabase.co";
-const SUPABASE_ANON_KEY = "YOUR_ANON_KEY"; // replace with your anon key
+const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZmYnFnY3pnaHplcnZudHloZnZkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjgzNzU1MTAsImV4cCI6MjA4Mzk1MTUxMH0.N8eowQR-yhK9Hd6PrvxdHR30GYWc7U2xGdzJNw4u5U4"; // replace with your anon key
 const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 // --- Helper: Get currently logged-in user ---
